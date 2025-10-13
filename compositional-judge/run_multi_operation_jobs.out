@@ -1,0 +1,6 @@
+nohup: ignoring input
+[2025-10-09T12:55:44-05:00] Starting mixed-operation run model=Qwen/Qwen3-8B seed=13
+[2025-10-09T12:59:14-05:00] Finished mixed-operation run model=Qwen/Qwen3-8B seed=13
+[2025-10-09T12:59:14-05:00] Starting mixed-operation run model=Qwen/Qwen3-8B seed=21
+[2025-10-09T13:02:39-05:00] Finished mixed-operation run model=Qwen/Qwen3-8B seed=21
+[2025-10-09T13:02:39-05:00] Starting mixed-operation run model=Qwen/Qwen3-8B seed=37
