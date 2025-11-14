@@ -350,7 +350,15 @@ def extract_numeric_answer(text: str) -> Optional[str]:
     matches = NUMERIC_PATTERN.findall(text)
     if not matches:
         return None
-    return matches[-1]
+    best: Optional[str] = None
+    best_len = -1
+    for token in matches:
+        candidate = token.strip()
+        length = len(candidate.lstrip("+-"))
+        if length > best_len or (length == best_len and candidate != best):
+            best = candidate
+            best_len = length
+    return best
 
 
 class TokenizedAdditionDataset(Dataset):
@@ -438,6 +446,7 @@ class VariantTrainingConfig:
     logging_steps: int
     max_steps: Optional[int] = None
     eval_steps: Optional[int] = None
+    decode_max_new_tokens: int = 16
 
 
 TRAINING_ARGUMENT_FIELDS = set(inspect.signature(TrainingArguments.__init__).parameters)
@@ -446,6 +455,14 @@ TRAINING_ARGUMENT_FIELDS.discard("self")
 
 def training_arg_supported(name: str) -> bool:
     return name in TRAINING_ARGUMENT_FIELDS
+
+
+def resolve_max_new_tokens(examples: Sequence[AdditionExample], base_value: int, buffer: int = 2) -> int:
+    """Return a decoding budget large enough for the longest target plus a small buffer."""
+    if not examples:
+        return base_value
+    max_target_len = max(len(example.target()) for example in examples)
+    return max(base_value, max_target_len + buffer)
 
 
 def evaluate_accuracy(
@@ -475,6 +492,7 @@ def evaluate_accuracy_with_breakdown(
     return_details: bool = False,
     debug_interval: Optional[int] = None,
     debug_label: Optional[str] = None,
+    accept_any_numeric_match: bool = False,
 ) -> tuple[float, Dict[int, float]]:
     """Compute accuracy plus per-digit breakdown via greedy decoding.
 
@@ -526,9 +544,13 @@ def evaluate_accuracy_with_breakdown(
                 digit_totals[example.digits] += 1
                 generated_slice = output_ids[idx, input_lengths[idx] :].tolist()
                 text = tokenizer.decode(generated_slice, skip_special_tokens=True)
-                pred = extract_numeric_answer(text)
-                pred_str = pred.strip() if pred is not None else None
-                is_correct = pred_str == example.target()
+                numeric_tokens = [match.strip() for match in NUMERIC_PATTERN.findall(text)]
+                pred_str = numeric_tokens[-1] if numeric_tokens else None
+                target_str = example.target()
+                if accept_any_numeric_match:
+                    is_correct = any(token == target_str for token in numeric_tokens)
+                else:
+                    is_correct = pred_str == target_str
                 if is_correct:
                     correct += 1
                     digit_correct[example.digits] += 1
@@ -546,6 +568,7 @@ def evaluate_accuracy_with_breakdown(
                             "prediction": pred_str,
                             "generated_text": text.strip(),
                             "is_correct": is_correct,
+                            "all_predictions": numeric_tokens,
                         }
                     )
                 if debug_interval and example_number % debug_interval == 0:
@@ -674,6 +697,8 @@ def train_variant(
         model.config.use_cache = False
     if len(tokenizer) != model.get_input_embeddings().weight.shape[0]:
         model.resize_token_embeddings(len(tokenizer))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
 
     train_dataset = TokenizedAdditionDataset(train_examples, tokenizer)
     val_dataset = TokenizedAdditionDataset(val_examples, tokenizer) if val_examples else None
@@ -704,15 +729,17 @@ def train_variant(
     def run_base_eval(tag: str, examples: Sequence[AdditionExample]) -> Tuple[float, Dict[int, float]]:
         if not examples:
             return math.nan, {}
+        decode_tokens = resolve_max_new_tokens(examples, config.decode_max_new_tokens)
         acc, breakdown, details = evaluate_accuracy_with_breakdown(
             model,
             tokenizer,
             examples,
             batch_size=config.per_device_eval_batch_size,
-            max_new_tokens=16,
+            max_new_tokens=decode_tokens,
             return_details=True,
             debug_interval=100,
             debug_label=f"{variant_name}:base_{tag}",
+            accept_any_numeric_match=True,
         )
         log_metric(f"accuracy/base_{tag}", acc, 0, wandb_step=None)
         write_details(f"base_{tag}_predictions.jsonl", details)
@@ -722,9 +749,6 @@ def train_variant(
     base_results: Dict[str, float] = {}
     base_breakdowns: Dict[str, Dict[int, float]] = {}
     for tag, dataset in (
-        ("validation", val_examples),
-        ("test", test_examples),
-        ("final_eval", eval_examples),
         ("shared_validation", shared_val_examples),
         ("shared_test", shared_test_examples),
     ):
@@ -735,6 +759,9 @@ def train_variant(
     report_channels = ["tensorboard"]
     if wandb_run is not None:
         report_channels.append("wandb")
+
+    shared_val_decode_tokens = resolve_max_new_tokens(shared_val_examples, config.decode_max_new_tokens)
+    shared_test_decode_tokens = resolve_max_new_tokens(shared_test_examples, config.decode_max_new_tokens)
 
     raw_training_kwargs = {
         "output_dir": str(output_dir),
@@ -790,7 +817,10 @@ def train_variant(
 
     periodic_eval_steps = config.eval_steps
 
-    if periodic_eval_steps and val_examples:
+    periodic_eval_examples = shared_val_examples if shared_val_examples else val_examples
+    periodic_decode_tokens = resolve_max_new_tokens(periodic_eval_examples, config.decode_max_new_tokens)
+
+    if periodic_eval_steps and periodic_eval_examples:
 
         class PeriodicEvalCallback(TrainerCallback):
             def __init__(self) -> None:
@@ -804,13 +834,13 @@ def train_variant(
                 val_acc_periodic, _ = evaluate_accuracy_with_breakdown(
                     trainer.model,
                     tokenizer,
-                    val_examples,
+                    periodic_eval_examples,
                     batch_size=config.per_device_eval_batch_size,
-                    max_new_tokens=16,
+                    max_new_tokens=periodic_decode_tokens,
                 )
-                log_metric("accuracy/validation_periodic", val_acc_periodic, step, wandb_step=step)
+                log_metric("accuracy/shared_validation_periodic", val_acc_periodic, step, wandb_step=step)
                 print(
-                    f"[INFO] {variant_name} periodic validation accuracy at step {step}: {format_accuracy(val_acc_periodic)}",
+                    f"[INFO] {variant_name} periodic shared validation accuracy at step {step}: {format_accuracy(val_acc_periodic)}",
                     flush=True,
                 )
                 return control
@@ -822,56 +852,38 @@ def train_variant(
         trainer.save_model()
 
     global_step = trainer.state.global_step
-    val_acc = evaluate_accuracy(
-        trainer.model,
-        tokenizer,
-        val_examples,
-        batch_size=config.per_device_eval_batch_size,
-        max_new_tokens=16,
-    )
-    log_metric("accuracy/validation", val_acc, global_step, wandb_step=global_step)
+    val_acc = math.nan
+    test_acc = math.nan
+    eval_acc = math.nan
+    eval_breakdown: Dict[int, float] = {}
 
-    test_acc = evaluate_accuracy(
-        trainer.model,
-        tokenizer,
-        test_examples,
-        batch_size=config.per_device_eval_batch_size,
-        max_new_tokens=16,
-    )
-    log_metric("accuracy/test", test_acc, global_step, wandb_step=global_step)
-
-    eval_acc, eval_breakdown, eval_details = evaluate_accuracy_with_breakdown(
-        trainer.model,
-        tokenizer,
-        eval_examples,
-        batch_size=config.per_device_eval_batch_size,
-        max_new_tokens=16,
-        return_details=True,
-        debug_interval=100,
-        debug_label=f"{variant_name}:final_eval",
-    )
-    log_metric("accuracy/final_eval", eval_acc, global_step, wandb_step=global_step)
-    write_details("final_eval_predictions.jsonl", eval_details)
-
-    shared_val_acc, shared_val_breakdown = evaluate_accuracy_with_breakdown(
+    shared_val_acc, shared_val_breakdown, shared_val_details = evaluate_accuracy_with_breakdown(
         trainer.model,
         tokenizer,
         shared_val_examples,
         batch_size=config.per_device_eval_batch_size,
-        max_new_tokens=16,
+        max_new_tokens=shared_val_decode_tokens,
+        return_details=True,
+        debug_interval=100,
+        debug_label=f"{variant_name}:shared_validation",
     )
     if not math.isnan(shared_val_acc):
         log_metric("accuracy/shared_validation", shared_val_acc, global_step, wandb_step=global_step)
+        write_details("shared_validation_predictions.jsonl", shared_val_details)
 
-    shared_test_acc, shared_test_breakdown = evaluate_accuracy_with_breakdown(
+    shared_test_acc, shared_test_breakdown, shared_test_details = evaluate_accuracy_with_breakdown(
         trainer.model,
         tokenizer,
         shared_test_examples,
         batch_size=config.per_device_eval_batch_size,
-        max_new_tokens=16,
+        max_new_tokens=shared_test_decode_tokens,
+        return_details=True,
+        debug_interval=100,
+        debug_label=f"{variant_name}:shared_test",
     )
     if not math.isnan(shared_test_acc):
         log_metric("accuracy/shared_test", shared_test_acc, global_step, wandb_step=global_step)
+        write_details("shared_test_predictions.jsonl", shared_test_details)
     writer.close()
 
     if return_model:
@@ -972,20 +984,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval-min-digits", type=int, default=None)
     parser.add_argument("--eval-max-digits", type=int, default=None)
 
-    parser.add_argument("--weak-train-per-digit", type=int, default=5000)
-    parser.add_argument("--weak-eval-per-digit", type=int, default=1000)
-    parser.add_argument("--strong-full-train-per-digit", type=int, default=5000)
-    parser.add_argument("--strong-full-eval-per-digit", type=int, default=1000)
-    parser.add_argument("--composed-train-per-digit", type=int, default=5000)
-    parser.add_argument("--composed-eval-per-digit", type=int, default=1000)
-    parser.add_argument("--final-eval-per-digit", type=int, default=1000)
-    parser.add_argument("--shared-val-per-digit", type=int, default=1000)
-    parser.add_argument("--shared-test-per-digit", type=int, default=1000)
+    parser.add_argument("--weak-train-per-digit", type=int, default=1000)
+    parser.add_argument("--weak-eval-per-digit", type=int, default=100)
+    parser.add_argument("--strong-full-train-per-digit", type=int, default=1000)
+    parser.add_argument("--strong-full-eval-per-digit", type=int, default=100)
+    parser.add_argument("--composed-train-per-digit", type=int, default=1000)
+    parser.add_argument("--composed-eval-per-digit", type=int, default=100)
+    parser.add_argument("--final-eval-per-digit", type=int, default=100)
+    parser.add_argument("--shared-val-per-digit", type=int, default=100)
+    parser.add_argument("--shared-test-per-digit", type=int, default=100)
     parser.add_argument(
         "--periodic-eval-steps",
         type=int,
         default=200,
         help="Run custom accuracy evaluation every N steps during training (0 disables).",
+    )
+    parser.add_argument(
+        "--decode-max-new-tokens",
+        type=int,
+        default=48,
+        help="Minimum decoding budget (new tokens) for greedy evaluations.",
     )
 
     parser.add_argument("--per-device-train-batch-size", type=int, default=4)
@@ -1221,6 +1239,7 @@ def main() -> None:
         weight_decay=args.weight_decay,
         logging_steps=args.logging_steps,
         max_steps=max_steps,
+        decode_max_new_tokens=args.decode_max_new_tokens,
     )
     periodic_eval_steps = args.periodic_eval_steps if args.periodic_eval_steps > 0 else None
 
@@ -1276,12 +1295,15 @@ def main() -> None:
     for split in split_names:
         weak_prediction_examples.extend(weak_splits[split])
 
+    weak_prediction_decode_tokens = resolve_max_new_tokens(
+        weak_prediction_examples, weak_config.decode_max_new_tokens
+    )
     weak_predictions = generate_prediction_map(
         weak_model,
         weak_tokenizer,
         weak_prediction_examples,
         batch_size=weak_config.per_device_eval_batch_size,
-        max_new_tokens=16,
+        max_new_tokens=weak_prediction_decode_tokens,
     )
 
     pseudo_override_map: Dict[Tuple[int, int, int], str] = {}
