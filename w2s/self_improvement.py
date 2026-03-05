@@ -28,7 +28,7 @@ import json
 import math
 import random
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import inspect
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -50,6 +50,7 @@ from weak_to_strong_addition_experiment_v2 import (
     example_key,
     evaluate_accuracy_with_breakdown,
     generate_prediction_map,
+    has_component_boundary_carry,
     resolve_max_new_tokens,
 )
 
@@ -74,6 +75,14 @@ class RoundSummary:
     eval_accuracy: float
     per_digit_accuracy: Dict[int, float]
     output_dir: Path
+    stitched_eval_accuracy: Optional[float] = None
+    stitched_boundary_carry_accuracy: Optional[float] = None
+    stitched_no_boundary_carry_accuracy: Optional[float] = None
+    stitched_unknown_accuracy: Optional[float] = None
+    stitched_boundary_carry_count: int = 0
+    stitched_no_boundary_carry_count: int = 0
+    stitched_unknown_count: int = 0
+    pseudo_generation_stats: JsonDict = field(default_factory=dict)
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -100,6 +109,15 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         type=int,
         default=100,
         help="Per-digit evaluation count sampled across the full digit range.",
+    )
+    parser.add_argument(
+        "--composed-eval-per-digit",
+        type=int,
+        default=50,
+        help=(
+            "Per-digit count for held-out composed evaluation examples used to report "
+            "boundary-carry vs non-boundary-carry stitched accuracy."
+        ),
     )
     parser.add_argument(
         "--composed-strategy",
@@ -288,6 +306,16 @@ def sanitize_breakdown(breakdown: Dict[int, float]) -> Dict[str, Optional[float]
     return {str(digits): sanitize_float(score) for digits, score in breakdown.items()}
 
 
+def sanitize_number_map(values: Dict[str, Any]) -> Dict[str, Any]:
+    sanitized: Dict[str, Any] = {}
+    for key, value in values.items():
+        if isinstance(value, float):
+            sanitized[key] = sanitize_float(value)
+        else:
+            sanitized[key] = value
+    return sanitized
+
+
 def summary_to_payload(summary: RoundSummary) -> JsonDict:
     return {
         "round": summary.index,
@@ -296,6 +324,14 @@ def summary_to_payload(summary: RoundSummary) -> JsonDict:
         "pseudo_examples": summary.pseudo_example_count,
         "eval_accuracy": sanitize_float(summary.eval_accuracy),
         "per_digit_accuracy": sanitize_breakdown(summary.per_digit_accuracy),
+        "stitched_eval_accuracy": sanitize_float(summary.stitched_eval_accuracy),
+        "stitched_boundary_carry_accuracy": sanitize_float(summary.stitched_boundary_carry_accuracy),
+        "stitched_no_boundary_carry_accuracy": sanitize_float(summary.stitched_no_boundary_carry_accuracy),
+        "stitched_unknown_accuracy": sanitize_float(summary.stitched_unknown_accuracy),
+        "stitched_boundary_carry_count": int(summary.stitched_boundary_carry_count),
+        "stitched_no_boundary_carry_count": int(summary.stitched_no_boundary_carry_count),
+        "stitched_unknown_count": int(summary.stitched_unknown_count),
+        "pseudo_generation_stats": sanitize_number_map(summary.pseudo_generation_stats),
         "output_dir": str(summary.output_dir),
     }
 
@@ -319,11 +355,23 @@ def write_summary_records(records: Dict[int, JsonDict], path: Path) -> None:
         entry = dict(records[round_idx])
         entry["round"] = int(entry["round"])
         entry["eval_accuracy"] = sanitize_float(entry.get("eval_accuracy"))
+        entry["stitched_eval_accuracy"] = sanitize_float(entry.get("stitched_eval_accuracy"))
+        entry["stitched_boundary_carry_accuracy"] = sanitize_float(entry.get("stitched_boundary_carry_accuracy"))
+        entry["stitched_no_boundary_carry_accuracy"] = sanitize_float(entry.get("stitched_no_boundary_carry_accuracy"))
+        entry["stitched_unknown_accuracy"] = sanitize_float(entry.get("stitched_unknown_accuracy"))
+        entry["stitched_boundary_carry_count"] = int(entry.get("stitched_boundary_carry_count", 0) or 0)
+        entry["stitched_no_boundary_carry_count"] = int(entry.get("stitched_no_boundary_carry_count", 0) or 0)
+        entry["stitched_unknown_count"] = int(entry.get("stitched_unknown_count", 0) or 0)
         per_digit = entry.get("per_digit_accuracy", {})
         entry["per_digit_accuracy"] = {
             str(digits): sanitize_float(per_digit_val)
             for digits, per_digit_val in per_digit.items()
         }
+        pseudo_stats = entry.get("pseudo_generation_stats", {})
+        if isinstance(pseudo_stats, dict):
+            entry["pseudo_generation_stats"] = sanitize_number_map(pseudo_stats)
+        else:
+            entry["pseudo_generation_stats"] = {}
         ordered.append(entry)
     with path.open("w", encoding="utf-8") as handle:
         json.dump(ordered, handle, indent=2)
@@ -405,6 +453,59 @@ def prepare_composed_train(
     )
 
 
+def prepare_composed_eval(
+    rng: random.Random,
+    base_splits: Dict[SplitName, List[AdditionExample]],
+    base_records: Dict[SplitName, set[Tuple[int, int, int]]],
+    min_digits: int,
+    max_digits: int,
+    per_digit_count: int,
+    additional_exclude: Optional[set[Tuple[int, int, int]]] = None,
+) -> Tuple[List[AdditionExample], Dict[Tuple[int, int, int], List[Tuple[int, int, int]]], set[Tuple[int, int, int]]]:
+    if max_digits < min_digits or per_digit_count <= 0:
+        return [], {}, set()
+
+    composed_counts = {
+        "train": 0,
+        "validation": 0,
+        "test": per_digit_count,
+    }
+    composed_records: Dict[SplitName, set[Tuple[int, int, int]]] = {"train": set(), "validation": set(), "test": set()}
+    component_records: Dict[SplitName, Dict[Tuple[int, int, int], List[Tuple[int, int, int]]]] = {
+        "train": {},
+        "validation": {},
+        "test": {},
+    }
+    base_used = set().union(*base_records.values())
+    if additional_exclude:
+        base_used.update(additional_exclude)
+
+    # Reuse training buckets for stitched-eval so this slice matches pseudo-label composition structure.
+    stitched_base_splits = {
+        "train": list(base_splits.get("train", [])),
+        "validation": list(base_splits.get("train", [])),
+        "test": list(base_splits.get("train", [])),
+    }
+    composed_splits = build_composed_datasets(
+        base_splits=stitched_base_splits,
+        min_digits=min_digits,
+        max_digits=max_digits,
+        per_digit_counts=composed_counts,
+        rng=rng,
+        exclude_pairs=base_used,
+        record_pairs=composed_records,
+        progress_name="composed-eval",
+        record_components=component_records,
+        allow_carry=True,
+        allow_nocarry=True,
+    )
+    return (
+        composed_splits.get("test", []),
+        component_records.get("test", {}),
+        composed_records.get("test", set()),
+    )
+
+
 def prepare_eval_examples(
     rng: random.Random,
     min_digits: int,
@@ -425,6 +526,39 @@ def prepare_eval_examples(
         progress_name="evaluation",
     )
     return list(eval_splits.get("test", []))
+
+
+def get_boundary_carry_status(
+    example: AdditionExample,
+    component_map: Dict[Tuple[int, int, int], List[Tuple[int, int, int]]],
+) -> Optional[bool]:
+    component_keys = component_map.get(example_key(example))
+    if not component_keys:
+        return None
+    component_digits = [key[0] for key in component_keys]
+    if len(component_digits) <= 1:
+        return None
+    if sum(component_digits) != example.digits:
+        return None
+    return has_component_boundary_carry(example, component_digits)
+
+
+def split_examples_by_boundary_status(
+    examples: Sequence[AdditionExample],
+    component_map: Dict[Tuple[int, int, int], List[Tuple[int, int, int]]],
+) -> Tuple[List[AdditionExample], List[AdditionExample], List[AdditionExample]]:
+    boundary_carry: List[AdditionExample] = []
+    no_boundary_carry: List[AdditionExample] = []
+    unknown: List[AdditionExample] = []
+    for example in examples:
+        status = get_boundary_carry_status(example, component_map)
+        if status is True:
+            boundary_carry.append(example)
+        elif status is False:
+            no_boundary_carry.append(example)
+        else:
+            unknown.append(example)
+    return boundary_carry, no_boundary_carry, unknown
 
 
 def load_model_for_tokenizer(
@@ -557,7 +691,7 @@ def derive_round_targets(
     filter_component_carries: bool = False,
     carry_error_fraction: float = 0.0,
     rng: Optional[random.Random] = None,
-) -> Tuple[List[AdditionExample], int]:
+) -> Tuple[List[AdditionExample], int, JsonDict]:
     candidate_examples = [
         example for example in composed_examples if example.digits <= target_max_digits
     ]
@@ -577,15 +711,75 @@ def derive_round_targets(
         carry_error_fraction=carry_error_fraction if filter_component_carries else 0.0,
         rng=rng,
     )
+
+    candidate_boundary = 0
+    candidate_no_boundary = 0
+    candidate_unknown = 0
+
+    kept_boundary = 0
+    kept_no_boundary = 0
+    kept_unknown = 0
+
+    missing_boundary = 0
+    missing_no_boundary = 0
+    missing_unknown = 0
+
     pseudo_examples: List[AdditionExample] = []
     missing_labels = 0
     for example in candidate_examples:
+        status = get_boundary_carry_status(example, component_subset)
+        if status is True:
+            candidate_boundary += 1
+        elif status is False:
+            candidate_no_boundary += 1
+        else:
+            candidate_unknown += 1
+
         override = pseudo_map.get(example_key(example))
         if override is None:
             missing_labels += 1
+            if status is True:
+                missing_boundary += 1
+            elif status is False:
+                missing_no_boundary += 1
+            else:
+                missing_unknown += 1
             continue
         pseudo_examples.append(clone_with_override(example, override))
-    return pseudo_examples, missing_labels
+        if status is True:
+            kept_boundary += 1
+        elif status is False:
+            kept_no_boundary += 1
+        else:
+            kept_unknown += 1
+
+    diagnostics: JsonDict = {
+        "target_max_digits": int(target_max_digits),
+        "candidate_total": len(candidate_examples),
+        "candidate_boundary_carry": candidate_boundary,
+        "candidate_no_boundary_carry": candidate_no_boundary,
+        "candidate_unknown_boundary": candidate_unknown,
+        "retained_total": len(pseudo_examples),
+        "retained_boundary_carry": kept_boundary,
+        "retained_no_boundary_carry": kept_no_boundary,
+        "retained_unknown_boundary": kept_unknown,
+        "missing_total": missing_labels,
+        "missing_boundary_carry": missing_boundary,
+        "missing_no_boundary_carry": missing_no_boundary,
+        "missing_unknown_boundary": missing_unknown,
+        "retained_boundary_fraction": (
+            kept_boundary / candidate_boundary if candidate_boundary > 0 else math.nan
+        ),
+        "retained_no_boundary_fraction": (
+            kept_no_boundary / candidate_no_boundary if candidate_no_boundary > 0 else math.nan
+        ),
+        "retained_unknown_fraction": (
+            kept_unknown / candidate_unknown if candidate_unknown > 0 else math.nan
+        ),
+        "filter_component_carries": bool(filter_component_carries),
+        "carry_error_fraction": carry_error_fraction if filter_component_carries else 0.0,
+    }
+    return pseudo_examples, missing_labels, diagnostics
 
 
 def summarize_round(summary: RoundSummary) -> None:
@@ -601,12 +795,52 @@ def summarize_round(summary: RoundSummary) -> None:
             f"{d}:{summary.per_digit_accuracy[d]:.4f}" for d in digits
         )
         print(f"  per-digit {breakdown}", flush=True)
+    stitched_count_total = (
+        summary.stitched_boundary_carry_count
+        + summary.stitched_no_boundary_carry_count
+        + summary.stitched_unknown_count
+    )
+    if stitched_count_total > 0:
+        print(
+            "  stitched-eval "
+            f"all={format_accuracy(summary.stitched_eval_accuracy)} "
+            f"boundary={format_accuracy(summary.stitched_boundary_carry_accuracy)} "
+            f"(n={summary.stitched_boundary_carry_count}) "
+            f"no-boundary={format_accuracy(summary.stitched_no_boundary_carry_accuracy)} "
+            f"(n={summary.stitched_no_boundary_carry_count}) "
+            f"unknown={format_accuracy(summary.stitched_unknown_accuracy)} "
+            f"(n={summary.stitched_unknown_count})",
+            flush=True,
+        )
+    if summary.pseudo_generation_stats:
+        stats = summary.pseudo_generation_stats
+        print(
+            "  next-pseudo "
+            f"retained={stats.get('retained_total', 0)}/{stats.get('candidate_total', 0)} "
+            f"boundary={stats.get('retained_boundary_carry', 0)}/{stats.get('candidate_boundary_carry', 0)} "
+            f"({format_fraction(stats.get('retained_boundary_fraction'))}) "
+            f"no-boundary={stats.get('retained_no_boundary_carry', 0)}/{stats.get('candidate_no_boundary_carry', 0)} "
+            f"({format_fraction(stats.get('retained_no_boundary_fraction'))})",
+            flush=True,
+        )
 
 
 def format_accuracy(value: float) -> str:
     if value is None or math.isnan(value):
         return "n/a"
     return f"{value:.4f}"
+
+
+def format_fraction(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, float) and math.isnan(value):
+        return "n/a"
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return "n/a"
+    return f"{numeric:.1%}"
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
@@ -616,6 +850,10 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         raise ValueError("initial_min_digits must be at least 1.")
     if args.initial_max_digits < args.initial_min_digits:
         raise ValueError("initial_max_digits must be >= initial_min_digits.")
+    if args.eval_per_digit < 0:
+        raise ValueError("eval_per_digit must be non-negative.")
+    if args.composed_eval_per_digit < 0:
+        raise ValueError("composed_eval_per_digit must be non-negative.")
     if args.expand_num_digits < 1 and args.num_expand_rounds > 0:
         raise ValueError("expand_num_digits must be positive when num_expand_rounds > 0.")
     if args.num_expand_rounds < 0:
@@ -680,6 +918,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     composed_pool_path = data_dir / "composed_pool.jsonl"
     component_map_path = data_dir / "composed_component_map.json"
     eval_path = data_dir / "evaluation.jsonl"
+    composed_eval_path = data_dir / "composed_evaluation.jsonl"
+    composed_eval_component_map_path = data_dir / "composed_evaluation_component_map.json"
 
     new_run = not resume_requested or not base_train_path.exists()
 
@@ -708,8 +948,21 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         save_examples(composed_pool_path, composed_examples)
         save_component_map(component_map_path, component_map)
 
+        composed_eval_examples, composed_eval_component_map, composed_eval_keys = prepare_composed_eval(
+            rng,
+            base_splits=base_splits,
+            base_records=base_records,
+            min_digits=args.initial_max_digits + 1,
+            max_digits=final_max_digits,
+            per_digit_count=args.composed_eval_per_digit,
+            additional_exclude=composed_keys,
+        )
+        save_examples(composed_eval_path, composed_eval_examples)
+        save_component_map(composed_eval_component_map_path, composed_eval_component_map)
+
         training_union = {example_key(example) for example in base_splits["train"]}
         training_union.update(composed_keys)
+        training_union.update(composed_eval_keys)
         eval_examples = prepare_eval_examples(
             rng,
             args.initial_min_digits,
@@ -729,6 +982,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             "filter_component_carries": filter_component_carries,
             "composed_max_digits": final_max_digits,
             "eval_per_digit": args.eval_per_digit,
+            "composed_eval_per_digit": args.composed_eval_per_digit,
             "reset_each_round": reset_each_round,
             "composed_refresh_mode": composed_refresh_mode,
             "composition_error_percent": composition_error_percent,
@@ -804,6 +1058,15 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                 "Requested num_expand_rounds requires more digits than available in stored composed data. "
                 "Regenerate datasets with a larger num_expand_rounds."
             )
+        stored_composed_eval_per_digit = metadata.get("composed_eval_per_digit")
+        if (
+            stored_composed_eval_per_digit is not None
+            and int(stored_composed_eval_per_digit) != args.composed_eval_per_digit
+        ):
+            raise ValueError(
+                "composed_eval_per_digit does not match stored datasets. "
+                "Please regenerate datasets or use matching value."
+            )
 
         base_splits = {
             "train": load_examples(base_train_path),
@@ -813,6 +1076,14 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         composed_examples = load_examples(composed_pool_path)
         component_map = load_component_map(component_map_path)
         eval_examples = load_examples(eval_path)
+        composed_eval_examples = load_examples(composed_eval_path)
+        composed_eval_component_map = load_component_map(composed_eval_component_map_path)
+        if not composed_eval_examples and args.composed_eval_per_digit > 0:
+            print(
+                "[WARN] Held-out composed evaluation set is missing; stitched carry slice metrics will be unavailable "
+                "for this run. Regenerate datasets to enable them.",
+                flush=True,
+            )
 
         # Recompute base_records placeholder for potential future use.
         base_records = {
@@ -823,13 +1094,27 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         raise ValueError("Base training split is empty; cannot proceed.")
 
     print(
-        "[INFO] Dataset sizes -- base train: {} | composed pool: {} | eval: {}".format(
+        "[INFO] Dataset sizes -- base train: {} | composed pool: {} | eval: {} | composed eval: {}".format(
             len(base_splits["train"]),
             len(composed_examples),
             len(eval_examples),
+            len(composed_eval_examples),
         ),
         flush=True,
     )
+
+    composed_eval_boundary_examples, composed_eval_no_boundary_examples, composed_eval_unknown_examples = (
+        split_examples_by_boundary_status(composed_eval_examples, composed_eval_component_map)
+    )
+    if composed_eval_examples:
+        print(
+            "[INFO] Composed eval slices -- boundary_carry: {} | no_boundary_carry: {} | unknown: {}".format(
+                len(composed_eval_boundary_examples),
+                len(composed_eval_no_boundary_examples),
+                len(composed_eval_unknown_examples),
+            ),
+            flush=True,
+        )
 
     eval_keys = {example_key(example) for example in eval_examples}
 
@@ -886,6 +1171,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
     train_base_decode_tokens = resolve_max_new_tokens(base_splits["train"], config.decode_max_new_tokens)
     eval_decode_tokens = resolve_max_new_tokens(eval_examples, config.decode_max_new_tokens)
+    composed_eval_decode_tokens = resolve_max_new_tokens(composed_eval_examples, config.decode_max_new_tokens)
 
     data_collator = CausalLMDataCollator(tokenizer)
     summary_records = dict(existing_summaries)
@@ -932,6 +1218,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
         train_examples = list(base_splits["train"])
         train_examples.extend(pseudo_examples)
+        pseudo_used_count = len(pseudo_examples)
 
         save_examples(round_dir / "train_examples.jsonl", train_examples)
         save_examples(round_dir / "pseudo_examples_used.jsonl", pseudo_examples)
@@ -964,15 +1251,125 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             batch_size=config.per_device_eval_batch_size,
             max_new_tokens=eval_decode_tokens,
         )
+        stitched_boundary_acc = math.nan
+        stitched_no_boundary_acc = math.nan
+        stitched_unknown_acc = math.nan
+
+        if composed_eval_boundary_examples:
+            stitched_boundary_acc, _ = evaluate_accuracy_with_breakdown(
+                model=model,
+                tokenizer=tokenizer,
+                examples=composed_eval_boundary_examples,
+                batch_size=config.per_device_eval_batch_size,
+                max_new_tokens=composed_eval_decode_tokens,
+            )
+        if composed_eval_no_boundary_examples:
+            stitched_no_boundary_acc, _ = evaluate_accuracy_with_breakdown(
+                model=model,
+                tokenizer=tokenizer,
+                examples=composed_eval_no_boundary_examples,
+                batch_size=config.per_device_eval_batch_size,
+                max_new_tokens=composed_eval_decode_tokens,
+            )
+        if composed_eval_unknown_examples:
+            stitched_unknown_acc, _ = evaluate_accuracy_with_breakdown(
+                model=model,
+                tokenizer=tokenizer,
+                examples=composed_eval_unknown_examples,
+                batch_size=config.per_device_eval_batch_size,
+                max_new_tokens=composed_eval_decode_tokens,
+            )
+
+        stitched_boundary_count = len(composed_eval_boundary_examples)
+        stitched_no_boundary_count = len(composed_eval_no_boundary_examples)
+        stitched_unknown_count = len(composed_eval_unknown_examples)
+        stitched_count_total = stitched_boundary_count + stitched_no_boundary_count + stitched_unknown_count
+        stitched_correct_total = 0.0
+        if stitched_boundary_count > 0 and not math.isnan(stitched_boundary_acc):
+            stitched_correct_total += stitched_boundary_acc * stitched_boundary_count
+        if stitched_no_boundary_count > 0 and not math.isnan(stitched_no_boundary_acc):
+            stitched_correct_total += stitched_no_boundary_acc * stitched_no_boundary_count
+        if stitched_unknown_count > 0 and not math.isnan(stitched_unknown_acc):
+            stitched_correct_total += stitched_unknown_acc * stitched_unknown_count
+        stitched_eval_acc = (
+            stitched_correct_total / stitched_count_total if stitched_count_total > 0 else math.nan
+        )
+
+        pseudo_generation_stats: JsonDict = {}
+        if round_idx >= args.num_expand_rounds:
+            pseudo_examples = []
+        else:
+            if dynamic_composed:
+                additional_exclude = eval_keys if eval_keys else None
+                if composed_min_digits <= final_max_digits and args.expand_train_per_digit > 0:
+                    refresh_label = f"round_{round_idx:02d}_next"
+                    composed_examples, component_map, _ = prepare_composed_train(
+                        rng,
+                        base_splits=base_splits,
+                        base_records=base_records,
+                        min_digits=composed_min_digits,
+                        max_digits=final_max_digits,
+                        per_digit_count=args.expand_train_per_digit,
+                        allow_carry=allow_carry_for_composed,
+                        additional_exclude=additional_exclude,
+                    )
+                    save_examples(composed_pool_path, composed_examples)
+                    save_component_map(component_map_path, component_map)
+                    metadata["last_composed_refresh"] = refresh_label
+                    save_examples(round_dir / "composed_pool_for_next_round.jsonl", composed_examples)
+                    save_component_map(round_dir / "composed_component_map_next_round.json", component_map)
+                else:
+                    metadata["last_composed_refresh"] = f"skipped_round_{round_idx:02d}"
+            persist_metadata()
+
+            base_predictions = build_base_predictions(
+                model,
+                tokenizer,
+                base_splits["train"],
+                batch_size=config.per_device_eval_batch_size,
+                decode_max_new_tokens=train_base_decode_tokens,
+            )
+            target_digits = args.initial_max_digits + (round_idx + 1) * args.expand_num_digits
+            pseudo_rng = random.Random(rng.random())
+            next_pseudo_examples, missing_labels, pseudo_generation_stats = derive_round_targets(
+                composed_examples,
+                component_map,
+                base_predictions,
+                target_max_digits=target_digits,
+                base_examples=base_splits["train"],
+                filter_component_carries=filter_component_carries,
+                carry_error_fraction=carry_error_fraction,
+                rng=pseudo_rng,
+            )
+            save_examples(round_dir / "pseudo_for_next_round.jsonl", next_pseudo_examples)
+            pseudo_examples = next_pseudo_examples
+            if missing_labels > 0:
+                print(
+                    f"[WARN] Round {round_idx}: skipped {missing_labels} composed examples without pseudo labels.",
+                    flush=True,
+                )
+            if not pseudo_examples:
+                print(
+                    "[WARN] No pseudo-labeled examples generated; subsequent rounds will have no additional data.",
+                    flush=True,
+                )
 
         summary = RoundSummary(
             index=round_idx,
             max_digits=digits_cap,
             train_example_count=len(train_examples),
-            pseudo_example_count=len(pseudo_examples),
+            pseudo_example_count=pseudo_used_count,
             eval_accuracy=eval_accuracy,
             per_digit_accuracy=per_digit_accuracy,
             output_dir=round_dir,
+            stitched_eval_accuracy=stitched_eval_acc,
+            stitched_boundary_carry_accuracy=stitched_boundary_acc,
+            stitched_no_boundary_carry_accuracy=stitched_no_boundary_acc,
+            stitched_unknown_accuracy=stitched_unknown_acc,
+            stitched_boundary_carry_count=stitched_boundary_count,
+            stitched_no_boundary_carry_count=stitched_no_boundary_count,
+            stitched_unknown_count=stitched_unknown_count,
+            pseudo_generation_stats=pseudo_generation_stats,
         )
         summarize_round(summary)
 
@@ -980,9 +1377,17 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             "round": round_idx,
             "max_digits": digits_cap,
             "train_examples": len(train_examples),
-            "pseudo_examples": len(pseudo_examples),
+            "pseudo_examples": pseudo_used_count,
             "eval_accuracy": sanitize_float(eval_accuracy),
             "per_digit_accuracy": sanitize_breakdown(per_digit_accuracy),
+            "stitched_eval_accuracy": sanitize_float(stitched_eval_acc),
+            "stitched_boundary_carry_accuracy": sanitize_float(stitched_boundary_acc),
+            "stitched_no_boundary_carry_accuracy": sanitize_float(stitched_no_boundary_acc),
+            "stitched_unknown_accuracy": sanitize_float(stitched_unknown_acc),
+            "stitched_boundary_carry_count": stitched_boundary_count,
+            "stitched_no_boundary_carry_count": stitched_no_boundary_count,
+            "stitched_unknown_count": stitched_unknown_count,
+            "pseudo_generation_stats": sanitize_number_map(pseudo_generation_stats),
         }
         with (round_dir / "metrics.json").open("w", encoding="utf-8") as handle:
             json.dump(metrics_payload, handle, indent=2)
@@ -991,63 +1396,11 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         write_summary_records(summary_records, results_path)
 
         if round_idx >= args.num_expand_rounds:
-            pseudo_examples = []
             del trainer
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             continue
 
-        if dynamic_composed:
-            additional_exclude = eval_keys if eval_keys else None
-            if composed_min_digits <= final_max_digits and args.expand_train_per_digit > 0:
-                refresh_label = f"round_{round_idx:02d}_next"
-                composed_examples, component_map, _ = prepare_composed_train(
-                    rng,
-                    base_splits=base_splits,
-                    base_records=base_records,
-                    min_digits=composed_min_digits,
-                    max_digits=final_max_digits,
-                    per_digit_count=args.expand_train_per_digit,
-                    allow_carry=allow_carry_for_composed,
-                    additional_exclude=additional_exclude,
-                )
-                save_examples(composed_pool_path, composed_examples)
-                save_component_map(component_map_path, component_map)
-                metadata["last_composed_refresh"] = refresh_label
-                save_examples(round_dir / "composed_pool_for_next_round.jsonl", composed_examples)
-                save_component_map(round_dir / "composed_component_map_next_round.json", component_map)
-            else:
-                metadata["last_composed_refresh"] = f"skipped_round_{round_idx:02d}"
-        persist_metadata()
-
-        base_predictions = build_base_predictions(
-            model,
-            tokenizer,
-            base_splits["train"],
-            batch_size=config.per_device_eval_batch_size,
-            decode_max_new_tokens=train_base_decode_tokens,
-        )
-        target_digits = args.initial_max_digits + (round_idx + 1) * args.expand_num_digits
-        pseudo_rng = random.Random(rng.random())
-        next_pseudo_examples, missing_labels = derive_round_targets(
-            composed_examples,
-            component_map,
-            base_predictions,
-            target_max_digits=target_digits,
-            base_examples=base_splits["train"],
-            filter_component_carries=filter_component_carries,
-            carry_error_fraction=carry_error_fraction,
-            rng=pseudo_rng,
-        )
-        save_examples(round_dir / "pseudo_for_next_round.jsonl", next_pseudo_examples)
-        pseudo_examples = next_pseudo_examples
-        if missing_labels > 0:
-            print(
-                f"[WARN] Round {round_idx}: skipped {missing_labels} composed examples without pseudo labels.",
-                flush=True,
-            )
-        if not pseudo_examples:
-            print("[WARN] No pseudo-labeled examples generated; subsequent rounds will have no additional data.", flush=True)
         if reset_each_round:
             del trainer
             del model

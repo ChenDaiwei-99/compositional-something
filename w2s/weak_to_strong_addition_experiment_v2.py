@@ -27,7 +27,20 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import torch
 from torch.utils.data import Dataset
-from torch.utils.tensorboard import SummaryWriter
+try:
+    from torch.utils.tensorboard import SummaryWriter
+except ImportError:
+    class SummaryWriter:  # type: ignore[override]
+        """Minimal no-op writer when tensorboard is unavailable."""
+
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def add_scalar(self, *args, **kwargs) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
