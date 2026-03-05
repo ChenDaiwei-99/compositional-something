@@ -15,7 +15,7 @@ if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
   ROOT_DIR="${SLURM_SUBMIT_DIR}"
 else
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+  ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 fi
 cd "${ROOT_DIR}"
 
@@ -27,4 +27,4 @@ echo "[INFO] Max hours: ${MAX_HOURS:-6}"
 echo "[INFO] Poll seconds: ${POLL_SECONDS:-45}"
 echo "[INFO] Max attempts: ${MAX_ATTEMPTS:-6}"
 
-bash "${ROOT_DIR}/w2s/launchers/meta/watch_meta_self_improvement.sh"
+bash "${ROOT_DIR}/launchers/meta/watch_meta_self_improvement.sh"

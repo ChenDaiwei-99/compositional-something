@@ -7,12 +7,12 @@ set -euo pipefail
 # - Repeats until success or max attempts / deadline reached.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "${ROOT_DIR}"
 
 mkdir -p "${ROOT_DIR}/artifacts/logs" "${ROOT_DIR}/artifacts/runs/meta_self_improvement"
 
-JOB_SCRIPT="${JOB_SCRIPT:-${ROOT_DIR}/w2s/launchers/meta/run_meta_self_improvement_rope.sbatch}"
+JOB_SCRIPT="${JOB_SCRIPT:-${ROOT_DIR}/launchers/meta/run_meta_self_improvement_rope.sbatch}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-6}"
 POLL_SECONDS="${POLL_SECONDS:-45}"
 MAX_HOURS="${MAX_HOURS:-6}"

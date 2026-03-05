@@ -21,11 +21,11 @@ launch_self_job() {
 
     echo "[INFO] Launching self_improvement (GPU${gpu}) with composition error percent=${percent}"
     if [ "${#SELF_IMPROVEMENT_ARGS[@]}" -gt 0 ]; then
-        CUDA_VISIBLE_DEVICES="${gpu}" python -m w2s.self.self_improvement_composition_error_experiment \
+        CUDA_VISIBLE_DEVICES="${gpu}" python -m self.self_improvement_composition_error_experiment \
             --composition-error-percent "${percent}" \
             -- --output-dir "${self_output_dir}" "${SELF_IMPROVEMENT_ARGS[@]}" &
     else
-        CUDA_VISIBLE_DEVICES="${gpu}" python -m w2s.self.self_improvement_composition_error_experiment \
+        CUDA_VISIBLE_DEVICES="${gpu}" python -m self.self_improvement_composition_error_experiment \
             --composition-error-percent "${percent}" \
             -- --output-dir "${self_output_dir}" &
     fi

@@ -14,10 +14,10 @@ set -euo pipefail
 # In Slurm, batch scripts may be staged to a spool path.
 if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
   ROOT_DIR="${SLURM_SUBMIT_DIR}"
-  SCRIPT_DIR="${ROOT_DIR}/w2s/launchers/meta"
+  SCRIPT_DIR="${ROOT_DIR}/launchers/meta"
 else
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+  ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 fi
 cd "${ROOT_DIR}"
 
@@ -119,6 +119,6 @@ nvidia-smi -L || true
 
 "${PYTHON_BIN}" -c "import torch; print(f'[INFO] torch={torch.__version__} cuda={torch.cuda.is_available()} device_count={torch.cuda.device_count()}')"
 
-"${PYTHON_BIN}" -m w2s.meta.train_meta_self_improvement_rope "${COMMON_ARGS[@]}"
+"${PYTHON_BIN}" -m meta.train_meta_self_improvement_rope "${COMMON_ARGS[@]}"
 
 echo "[INFO] Finished meta self-improvement run. Results at: ${OUT_ROOT}"

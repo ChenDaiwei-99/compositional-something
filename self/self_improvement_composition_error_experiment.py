@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 from typing import List, Optional, Sequence
 
-from w2s.self.self_improvement import main as self_improvement_main
+from self.self_improvement import main as self_improvement_main
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:

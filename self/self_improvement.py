@@ -36,7 +36,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, set_seed
 
-from w2s.core.addition_pipeline import (
+from core.addition_pipeline import (
     AdditionExample,
     CausalLMDataCollator,
     TokenizedAdditionDataset,

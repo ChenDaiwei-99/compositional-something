@@ -8,11 +8,11 @@ import sys
 from pathlib import Path
 from typing import List, Optional, Sequence
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from w2s.core.addition_pipeline import main as w2s_main
+from core.addition_pipeline import main as w2s_main
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:

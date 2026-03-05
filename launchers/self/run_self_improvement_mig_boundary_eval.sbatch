@@ -16,10 +16,10 @@ set -euo pipefail
 # may not point to the repository location. Prefer the submit directory.
 if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
   ROOT_DIR="${SLURM_SUBMIT_DIR}"
-  SCRIPT_DIR="${ROOT_DIR}/w2s/launchers/self"
+  SCRIPT_DIR="${ROOT_DIR}/launchers/self"
 else
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+  ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 fi
 cd "${ROOT_DIR}"
 
@@ -80,13 +80,13 @@ print(f"[INFO] model_config_ok={model_name}")
 PY
 
 echo "[INFO] Run 1/2: with_carry (no filtering)"
-"${PYTHON_BIN}" -m w2s.self.self_improvement \
+"${PYTHON_BIN}" -m self.self_improvement \
   --output-dir "${OUT_ROOT}/with_carry" \
   --composed-strategy with_carry \
   "${COMMON_ARGS[@]}"
 
 echo "[INFO] Run 2/2: with_carry_filtered (0% boundary-carry retention)"
-"${PYTHON_BIN}" -m w2s.self.self_improvement_composition_error_experiment \
+"${PYTHON_BIN}" -m self.self_improvement_composition_error_experiment \
   --composition-error-percent 0 \
   -- \
   --output-dir "${OUT_ROOT}/with_carry_filtered_p0" \

@@ -15,10 +15,10 @@ set -euo pipefail
 
 if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
   ROOT_DIR="${SLURM_SUBMIT_DIR}"
-  SCRIPT_DIR="${ROOT_DIR}/w2s/launchers/self"
+  SCRIPT_DIR="${ROOT_DIR}/launchers/self"
 else
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+  ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 fi
 cd "${ROOT_DIR}"
 
@@ -85,6 +85,6 @@ AutoConfig.from_pretrained(model_name, trust_remote_code=True)
 print(f"[INFO] model_config_ok={model_name}")
 PY
 
-"${PYTHON_BIN}" -m w2s.self.self_improvement "${COMMON_ARGS[@]}"
+"${PYTHON_BIN}" -m self.self_improvement "${COMMON_ARGS[@]}"
 
 echo "[INFO] Finished Qwen no-growth self-improvement run."
