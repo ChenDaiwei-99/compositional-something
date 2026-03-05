@@ -3,7 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+cd "${ROOT_DIR}"
 
 PROPORTIONS=(0 10 20 30 40 50 60 70 80 90 100)
 
@@ -14,7 +15,7 @@ SELF_IMPROVEMENT_ARGS=()
 run_w2s_queue() {
     for percent in "${PROPORTIONS[@]}"; do
         echo "[INFO] Launching weak_to_strong (GPU0) with composition error percent=${percent}"
-        w2s_output_dir="results/w2s_err_${percent}"
+        w2s_output_dir="${ROOT_DIR}/artifacts/runs/legacy_w2s/w2s_err_${percent}"
         if [ "${#W2S_ARGS[@]}" -gt 0 ]; then
             CUDA_VISIBLE_DEVICES=0 python "${SCRIPT_DIR}/weak_to_strong_composition_error_experiment.py" \
                 --composition-error-percent "${percent}" \
@@ -31,13 +32,13 @@ run_w2s_queue() {
 run_self_queue() {
     for percent in "${PROPORTIONS[@]}"; do
         echo "[INFO] Launching self_improvement (GPU7) with composition error percent=${percent}"
-        self_output_dir="self_improvement_runs/error_${percent}"
+        self_output_dir="${ROOT_DIR}/artifacts/runs/self_improvement/error_${percent}"
         if [ "${#SELF_IMPROVEMENT_ARGS[@]}" -gt 0 ]; then
-            CUDA_VISIBLE_DEVICES=7 python "${SCRIPT_DIR}/self_improvement_composition_error_experiment.py" \
+            CUDA_VISIBLE_DEVICES=7 python -m w2s.self.self_improvement_composition_error_experiment \
                 --composition-error-percent "${percent}" \
                 -- --output-dir "${self_output_dir}" "${SELF_IMPROVEMENT_ARGS[@]}" &
         else
-            CUDA_VISIBLE_DEVICES=7 python "${SCRIPT_DIR}/self_improvement_composition_error_experiment.py" \
+            CUDA_VISIBLE_DEVICES=7 python -m w2s.self.self_improvement_composition_error_experiment \
                 --composition-error-percent "${percent}" \
                 -- --output-dir "${self_output_dir}" &
         fi

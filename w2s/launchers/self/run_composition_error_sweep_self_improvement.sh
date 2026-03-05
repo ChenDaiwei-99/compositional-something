@@ -3,7 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+cd "${ROOT_DIR}"
 
 PROPORTIONS=(40 50 60 70 80 90 100)
 
@@ -16,15 +17,15 @@ declare -A SELF_GPU_PIDS=()
 launch_self_job() {
     local gpu="$1"
     local percent="$2"
-    local self_output_dir="self_improvement_runs/error_${percent}"
+    local self_output_dir="${ROOT_DIR}/artifacts/runs/self_improvement/error_${percent}"
 
     echo "[INFO] Launching self_improvement (GPU${gpu}) with composition error percent=${percent}"
     if [ "${#SELF_IMPROVEMENT_ARGS[@]}" -gt 0 ]; then
-        CUDA_VISIBLE_DEVICES="${gpu}" python "${SCRIPT_DIR}/self_improvement_composition_error_experiment.py" \
+        CUDA_VISIBLE_DEVICES="${gpu}" python -m w2s.self.self_improvement_composition_error_experiment \
             --composition-error-percent "${percent}" \
             -- --output-dir "${self_output_dir}" "${SELF_IMPROVEMENT_ARGS[@]}" &
     else
-        CUDA_VISIBLE_DEVICES="${gpu}" python "${SCRIPT_DIR}/self_improvement_composition_error_experiment.py" \
+        CUDA_VISIBLE_DEVICES="${gpu}" python -m w2s.self.self_improvement_composition_error_experiment \
             --composition-error-percent "${percent}" \
             -- --output-dir "${self_output_dir}" &
     fi

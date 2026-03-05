@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=meta-selfimp-rope
-#SBATCH --output=logs/meta-selfimp-rope-%j.out
-#SBATCH --error=logs/meta-selfimp-rope-%j.err
+#SBATCH --output=artifacts/logs/meta-selfimp-rope-%j.out
+#SBATCH --error=artifacts/logs/meta-selfimp-rope-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -14,14 +14,14 @@ set -euo pipefail
 # In Slurm, batch scripts may be staged to a spool path.
 if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
   ROOT_DIR="${SLURM_SUBMIT_DIR}"
-  SCRIPT_DIR="${ROOT_DIR}/w2s"
+  SCRIPT_DIR="${ROOT_DIR}/w2s/launchers/meta"
 else
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+  ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 fi
 cd "${ROOT_DIR}"
 
-mkdir -p "${ROOT_DIR}/logs"
+mkdir -p "${ROOT_DIR}/artifacts/logs"
 
 TORCH_ENV_PATH="${TORCH_ENV_PATH:-${HOME}/.conda/envs/torch-env}"
 if [[ -n "${PYTHON_BIN:-}" ]]; then
@@ -33,7 +33,7 @@ else
 fi
 
 TS="$(date +%Y%m%d_%H%M%S)"
-OUT_ROOT="${OUT_ROOT:-${ROOT_DIR}/w2s/meta_self_improvement_runs/cluster_${TS}}"
+OUT_ROOT="${OUT_ROOT:-${ROOT_DIR}/artifacts/runs/meta_self_improvement/cluster_${TS}}"
 MAX_PSEUDO_PER_ROUND_PER_DIGIT="${MAX_PSEUDO_PER_ROUND_PER_DIGIT:-1000}"
 NEW_PSEUDO_UNIQUE_QUOTA_PER_DIGIT="${NEW_PSEUDO_UNIQUE_QUOTA_PER_DIGIT:-1000}"
 MIN_UNIQUE_CANDIDATE_PER_DIGIT="${MIN_UNIQUE_CANDIDATE_PER_DIGIT:-200}"
@@ -119,6 +119,6 @@ nvidia-smi -L || true
 
 "${PYTHON_BIN}" -c "import torch; print(f'[INFO] torch={torch.__version__} cuda={torch.cuda.is_available()} device_count={torch.cuda.device_count()}')"
 
-"${PYTHON_BIN}" "${ROOT_DIR}/w2s/meta_self_improvement_rope.py" "${COMMON_ARGS[@]}"
+"${PYTHON_BIN}" -m w2s.meta.train_meta_self_improvement_rope "${COMMON_ARGS[@]}"
 
 echo "[INFO] Finished meta self-improvement run. Results at: ${OUT_ROOT}"

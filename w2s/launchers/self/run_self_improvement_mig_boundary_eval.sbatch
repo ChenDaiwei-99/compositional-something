@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=selfimp-boundary
-#SBATCH --output=logs/selfimp-boundary-%j.out
-#SBATCH --error=logs/selfimp-boundary-%j.err
+#SBATCH --output=artifacts/logs/selfimp-boundary-%j.out
+#SBATCH --error=artifacts/logs/selfimp-boundary-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -16,14 +16,14 @@ set -euo pipefail
 # may not point to the repository location. Prefer the submit directory.
 if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
   ROOT_DIR="${SLURM_SUBMIT_DIR}"
-  SCRIPT_DIR="${ROOT_DIR}/w2s"
+  SCRIPT_DIR="${ROOT_DIR}/w2s/launchers/self"
 else
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+  ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 fi
 cd "${ROOT_DIR}"
 
-mkdir -p "${ROOT_DIR}/logs"
+mkdir -p "${ROOT_DIR}/artifacts/logs"
 
 TORCH_ENV_PATH="${TORCH_ENV_PATH:-${HOME}/.conda/envs/torch-env}"
 if [[ -n "${PYTHON_BIN:-}" ]]; then
@@ -33,11 +33,11 @@ elif [[ -x "${TORCH_ENV_PATH}/bin/python" ]]; then
 else
   PYTHON_BIN="python"
 fi
-DEFAULT_LOCAL_MODEL="${ROOT_DIR}/models/Qwen3-0.6B"
+DEFAULT_LOCAL_MODEL="${ROOT_DIR}/artifacts/models/Qwen3-0.6B"
 MODEL_NAME="${MODEL_NAME:-${DEFAULT_LOCAL_MODEL}}"
 SEED="${SEED:-42}"
 TS="$(date +%Y%m%d_%H%M%S)"
-OUT_ROOT="${OUT_ROOT:-${ROOT_DIR}/w2s/self_improvement_runs/mig_boundary_eval_${TS}}"
+OUT_ROOT="${OUT_ROOT:-${ROOT_DIR}/artifacts/runs/self_improvement/mig_boundary_eval_${TS}}"
 
 # Defaults are tuned for a MIG slice; override with EXTRA_ARGS if needed.
 COMMON_ARGS=(
@@ -80,13 +80,13 @@ print(f"[INFO] model_config_ok={model_name}")
 PY
 
 echo "[INFO] Run 1/2: with_carry (no filtering)"
-"${PYTHON_BIN}" "${ROOT_DIR}/w2s/self_improvement.py" \
+"${PYTHON_BIN}" -m w2s.self.self_improvement \
   --output-dir "${OUT_ROOT}/with_carry" \
   --composed-strategy with_carry \
   "${COMMON_ARGS[@]}"
 
 echo "[INFO] Run 2/2: with_carry_filtered (0% boundary-carry retention)"
-"${PYTHON_BIN}" "${ROOT_DIR}/w2s/self_improvement_composition_error_experiment.py" \
+"${PYTHON_BIN}" -m w2s.self.self_improvement_composition_error_experiment \
   --composition-error-percent 0 \
   -- \
   --output-dir "${OUT_ROOT}/with_carry_filtered_p0" \

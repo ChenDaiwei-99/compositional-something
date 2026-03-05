@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=selfimp-qwen
-#SBATCH --output=logs/selfimp-qwen-%j.out
-#SBATCH --error=logs/selfimp-qwen-%j.err
+#SBATCH --output=artifacts/logs/selfimp-qwen-%j.out
+#SBATCH --error=artifacts/logs/selfimp-qwen-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -15,14 +15,14 @@ set -euo pipefail
 
 if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
   ROOT_DIR="${SLURM_SUBMIT_DIR}"
-  SCRIPT_DIR="${ROOT_DIR}/w2s"
+  SCRIPT_DIR="${ROOT_DIR}/w2s/launchers/self"
 else
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+  ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 fi
 cd "${ROOT_DIR}"
 
-mkdir -p "${ROOT_DIR}/logs"
+mkdir -p "${ROOT_DIR}/artifacts/logs"
 
 TORCH_ENV_PATH="${TORCH_ENV_PATH:-${HOME}/.conda/envs/torch-env}"
 if [[ -n "${PYTHON_BIN:-}" ]]; then
@@ -33,11 +33,11 @@ else
   PYTHON_BIN="python"
 fi
 
-DEFAULT_LOCAL_MODEL="${ROOT_DIR}/models/Qwen3-0.6B"
+DEFAULT_LOCAL_MODEL="${ROOT_DIR}/artifacts/models/Qwen3-0.6B"
 MODEL_NAME="${MODEL_NAME:-${DEFAULT_LOCAL_MODEL}}"
 SEED="${SEED:-42}"
 TS="$(date +%Y%m%d_%H%M%S)"
-OUT_ROOT="${OUT_ROOT:-${ROOT_DIR}/w2s/self_improvement_runs/qwen_no_growth_${TS}}"
+OUT_ROOT="${OUT_ROOT:-${ROOT_DIR}/artifacts/runs/self_improvement/qwen_no_growth_${TS}}"
 
 COMMON_ARGS=(
   --model-name "${MODEL_NAME}"
@@ -85,6 +85,6 @@ AutoConfig.from_pretrained(model_name, trust_remote_code=True)
 print(f"[INFO] model_config_ok={model_name}")
 PY
 
-"${PYTHON_BIN}" "${ROOT_DIR}/w2s/self_improvement.py" "${COMMON_ARGS[@]}"
+"${PYTHON_BIN}" -m w2s.self.self_improvement "${COMMON_ARGS[@]}"
 
 echo "[INFO] Finished Qwen no-growth self-improvement run."

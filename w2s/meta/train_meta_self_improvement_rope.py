@@ -1421,7 +1421,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Meta self-improvement prototype with a minimal RoPE Transformer and capacity growth."
     )
-    parser.add_argument("--output-dir", type=str, default="w2s/meta_self_improvement_runs/rope_prototype")
+    parser.add_argument("--output-dir", type=str, default="artifacts/runs/meta_self_improvement/rope_prototype")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", type=str, default="auto", help="auto, cuda, or cpu")
 

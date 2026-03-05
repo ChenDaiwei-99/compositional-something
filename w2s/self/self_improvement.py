@@ -36,7 +36,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, set_seed
 
-from weak_to_strong_addition_experiment_v2 import (
+from w2s.core.addition_pipeline import (
     AdditionExample,
     CausalLMDataCollator,
     TokenizedAdditionDataset,
@@ -89,7 +89,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Self-improvement addition experiment (resumable)")
 
     parser.add_argument("--model-name", type=str, default="Qwen/Qwen3-0.6B")
-    parser.add_argument("--output-dir", type=str, default="self_improvement_runs")
+    parser.add_argument("--output-dir", type=str, default="artifacts/runs/self_improvement")
 
     parser.add_argument("--initial-min-digits", type=int, default=3)
     parser.add_argument("--initial-max-digits", type=int, default=7)
