@@ -1,835 +1,0 @@
-[2025-10-09T11:13:07-05:00] Starting composite run model=Qwen/Qwen3-1.7B seed=37
-INFO 10-09 11:13:10 [__init__.py:239] Automatically detected platform cuda.
-Using device: cuda
-Loading model Qwen/Qwen3-1.7B ...
-INFO 10-09 11:13:16 [config.py:717] This model supports multiple tasks: {'score', 'generate', 'classify', 'reward', 'embed'}. Defaulting to 'generate'.
-INFO 10-09 11:13:16 [config.py:2003] Chunked prefill is enabled with max_num_batched_tokens=8192.
-INFO 10-09 11:13:17 [core.py:58] Initializing a V1 LLM engine (v0.8.5.post1) with config: model='Qwen/Qwen3-1.7B', speculative_config=None, tokenizer='Qwen/Qwen3-1.7B', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=40960, download_dir=None, load_format=LoadFormat.AUTO, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(guided_decoding_backend='auto', reasoning_backend=None), observability_config=ObservabilityConfig(show_hidden_metrics=False, otlp_traces_endpoint=None, collect_model_forward_time=False, collect_model_execute_time=False), seed=None, served_model_name=Qwen/Qwen3-1.7B, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, disable_mm_preprocessor_cache=False, mm_processor_kwargs=None, pooler_config=None, compilation_config={"level":3,"custom_ops":["none"],"splitting_ops":["vllm.unified_attention","vllm.unified_attention_with_output"],"use_inductor":true,"compile_sizes":[],"use_cudagraph":true,"cudagraph_num_of_warmups":1,"cudagraph_capture_sizes":[512,504,496,488,480,472,464,456,448,440,432,424,416,408,400,392,384,376,368,360,352,344,336,328,320,312,304,296,288,280,272,264,256,248,240,232,224,216,208,200,192,184,176,168,160,152,144,136,128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],"max_capture_size":512}
-WARNING 10-09 11:13:17 [utils.py:2522] Methods determine_num_available_blocks,device_config,get_cache_block_size_bytes,initialize_cache not implemented in <vllm.v1.worker.gpu_worker.Worker object at 0x7e3b308c75c0>
-INFO 10-09 11:13:18 [parallel_state.py:1004] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0
-INFO 10-09 11:13:18 [cuda.py:221] Using Flash Attention backend on V1 engine.
-WARNING 10-09 11:13:18 [topk_topp_sampler.py:69] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
-INFO 10-09 11:13:18 [gpu_model_runner.py:1329] Starting to load model Qwen/Qwen3-1.7B...
-INFO 10-09 11:13:18 [weight_utils.py:265] Using model weights format ['*.safetensors']
-Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
-Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:00<00:00,  4.07it/s]
-Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:00<00:00,  4.07it/s]
-
-INFO 10-09 11:13:19 [loader.py:458] Loading weights took 0.54 seconds
-INFO 10-09 11:13:19 [gpu_model_runner.py:1347] Model loading took 3.2152 GiB and 0.997221 seconds
-INFO 10-09 11:13:23 [backends.py:420] Using cache directory: /home/changho/.cache/vllm/torch_compile_cache/97aa7bf485/rank_0_0 for vLLM's torch.compile
-INFO 10-09 11:13:23 [backends.py:430] Dynamo bytecode transform time: 3.73 s
-INFO 10-09 11:13:26 [backends.py:118] Directly load the compiled graph(s) for shape None from the cache, took 2.621 s
-INFO 10-09 11:13:26 [monitor.py:33] torch.compile takes 3.73 s in total
-INFO 10-09 11:13:27 [kv_cache_utils.py:634] GPU KV cache size: 349,920 tokens
-INFO 10-09 11:13:27 [kv_cache_utils.py:637] Maximum concurrency for 40,960 tokens per request: 8.54x
-INFO 10-09 11:13:39 [gpu_model_runner.py:1686] Graph capturing finished in 13 secs, took 0.47 GiB
-INFO 10-09 11:13:39 [core.py:159] init engine (profile, create kv cache, warmup model) took 20.34 seconds
-INFO 10-09 11:13:39 [core_client.py:439] Core engine process 0 ready.
-Generating synthetic workloads with 1000 contexts (seed=37) ...
-Scoring addition:   0%|          | 0/1000 [00:00<?, ?it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][A
-Processed prompts:  12%|█▎        | 1/8 [00:00<00:00,  8.87it/s, est. speed input: 993.12 toks/s, output: 17.73 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 70.71it/s, est. speed input: 7895.23 toks/s, output: 141.46 toks/s]
-Scoring addition:   1%|          | 8/1000 [00:00<00:14, 68.34it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 309.97it/s, est. speed input: 34551.82 toks/s, output: 620.40 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 314.23it/s, est. speed input: 35149.34 toks/s, output: 629.63 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 306.70it/s, est. speed input: 34196.56 toks/s, output: 614.63 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 316.35it/s, est. speed input: 35473.07 toks/s, output: 634.01 toks/s]
-Scoring addition:   4%|▍         | 40/1000 [00:00<00:04, 192.84it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 331.17it/s, est. speed input: 36980.52 toks/s, output: 663.27 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 337.23it/s, est. speed input: 37635.62 toks/s, output: 675.01 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 338.97it/s, est. speed input: 37956.93 toks/s, output: 678.48 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 338.44it/s, est. speed input: 37852.51 toks/s, output: 677.38 toks/s]
-Scoring addition:   7%|▋         | 72/1000 [00:00<00:03, 242.19it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 338.81it/s, est. speed input: 37894.97 toks/s, output: 678.14 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 335.61it/s, est. speed input: 37449.52 toks/s, output: 671.68 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 340.22it/s, est. speed input: 37923.41 toks/s, output: 680.93 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 340.36it/s, est. speed input: 37979.85 toks/s, output: 681.18 toks/s]
-Scoring addition:  10%|█         | 104/1000 [00:00<00:03, 269.85it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 338.62it/s, est. speed input: 37786.14 toks/s, output: 677.72 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 350.45it/s, est. speed input: 39020.45 toks/s, output: 701.42 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.52it/s, est. speed input: 37758.21 toks/s, output: 679.49 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.03it/s, est. speed input: 37703.61 toks/s, output: 678.52 toks/s]
-Scoring addition:  14%|█▎        | 136/1000 [00:00<00:03, 286.80it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 338.88it/s, est. speed input: 37907.23 toks/s, output: 678.35 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.84it/s, est. speed input: 40200.85 toks/s, output: 720.21 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.70it/s, est. speed input: 40186.62 toks/s, output: 719.95 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 361.11it/s, est. speed input: 40298.57 toks/s, output: 722.77 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 376.57it/s, est. speed input: 42117.35 toks/s, output: 753.70 toks/s]
-Scoring addition:  18%|█▊        | 176/1000 [00:00<00:02, 304.17it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.20it/s, est. speed input: 42413.67 toks/s, output: 759.00 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.40it/s, est. speed input: 37872.59 toks/s, output: 679.25 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 361.41it/s, est. speed input: 40240.29 toks/s, output: 723.34 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 337.78it/s, est. speed input: 37775.86 toks/s, output: 676.00 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 348.40it/s, est. speed input: 38877.72 toks/s, output: 697.29 toks/s]
-Scoring addition:  22%|██▏       | 216/1000 [00:00<00:02, 312.60it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 348.89it/s, est. speed input: 39062.05 toks/s, output: 698.24 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 361.84it/s, est. speed input: 40332.46 toks/s, output: 724.18 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 340.87it/s, est. speed input: 38141.30 toks/s, output: 683.21 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 344.57it/s, est. speed input: 38597.09 toks/s, output: 690.59 toks/s]
-Scoring addition:  25%|██▍       | 248/1000 [00:00<00:02, 314.44it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 340.27it/s, est. speed input: 38024.63 toks/s, output: 681.88 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 335.77it/s, est. speed input: 37578.77 toks/s, output: 673.13 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 353.59it/s, est. speed input: 39523.39 toks/s, output: 707.96 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.79it/s, est. speed input: 42404.64 toks/s, output: 760.41 toks/s]
-Scoring addition:  28%|██▊       | 280/1000 [00:00<00:02, 312.52it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 363.60it/s, est. speed input: 40709.02 toks/s, output: 728.37 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 386.04it/s, est. speed input: 43179.93 toks/s, output: 773.45 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.50it/s, est. speed input: 42406.52 toks/s, output: 759.71 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 338.24it/s, est. speed input: 37785.38 toks/s, output: 676.94 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 336.24it/s, est. speed input: 37520.88 toks/s, output: 672.95 toks/s]
-Scoring addition:  32%|███▏      | 320/1000 [00:01<00:02, 316.66it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 348.58it/s, est. speed input: 38984.74 toks/s, output: 697.65 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 348.29it/s, est. speed input: 38909.57 toks/s, output: 697.08 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 348.19it/s, est. speed input: 38767.99 toks/s, output: 696.87 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 358.40it/s, est. speed input: 39960.70 toks/s, output: 717.51 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 362.88it/s, est. speed input: 40540.25 toks/s, output: 726.29 toks/s]
-Scoring addition:  36%|███▌      | 360/1000 [00:01<00:01, 320.39it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.53it/s, est. speed input: 42467.70 toks/s, output: 761.67 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 349.45it/s, est. speed input: 38997.26 toks/s, output: 699.42 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 348.59it/s, est. speed input: 38856.34 toks/s, output: 697.68 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.01it/s, est. speed input: 40265.32 toks/s, output: 720.55 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 340.94it/s, est. speed input: 37916.01 toks/s, output: 682.34 toks/s]
-Scoring addition:  40%|████      | 400/1000 [00:01<00:01, 323.45it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.78it/s, est. speed input: 40304.68 toks/s, output: 722.07 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 348.38it/s, est. speed input: 38918.87 toks/s, output: 697.23 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 357.69it/s, est. speed input: 39825.15 toks/s, output: 715.89 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.18it/s, est. speed input: 42361.92 toks/s, output: 758.93 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.03it/s, est. speed input: 42473.60 toks/s, output: 762.63 toks/s]
-Scoring addition:  44%|████▍     | 440/1000 [00:01<00:01, 328.11it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.85it/s, est. speed input: 42611.84 toks/s, output: 764.26 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 374.87it/s, est. speed input: 41786.40 toks/s, output: 750.28 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 384.04it/s, est. speed input: 42858.84 toks/s, output: 768.67 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.00it/s, est. speed input: 40256.67 toks/s, output: 720.40 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.45it/s, est. speed input: 40108.91 toks/s, output: 719.37 toks/s]
-Scoring addition:  48%|████▊     | 480/1000 [00:01<00:01, 333.14it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.14it/s, est. speed input: 42420.99 toks/s, output: 760.83 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.54it/s, est. speed input: 42668.99 toks/s, output: 763.56 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.97it/s, est. speed input: 42398.39 toks/s, output: 760.42 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 361.62it/s, est. speed input: 40443.81 toks/s, output: 723.75 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 377.34it/s, est. speed input: 42015.27 toks/s, output: 755.24 toks/s]
-Scoring addition:  52%|█████▏    | 520/1000 [00:01<00:01, 337.73it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 350.06it/s, est. speed input: 39104.57 toks/s, output: 700.56 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 388.07it/s, est. speed input: 43350.35 toks/s, output: 776.63 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.47it/s, est. speed input: 42246.36 toks/s, output: 759.39 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 358.62it/s, est. speed input: 39973.53 toks/s, output: 717.75 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 349.18it/s, est. speed input: 39050.10 toks/s, output: 698.82 toks/s]
-Scoring addition:  56%|█████▌    | 560/1000 [00:01<00:01, 337.69it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.80it/s, est. speed input: 40217.44 toks/s, output: 722.12 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.62it/s, est. speed input: 42629.02 toks/s, output: 763.69 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.73it/s, est. speed input: 42529.79 toks/s, output: 761.92 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 347.92it/s, est. speed input: 38822.85 toks/s, output: 696.31 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 398.79it/s, est. speed input: 44648.91 toks/s, output: 798.10 toks/s]
-Scoring addition:  60%|██████    | 600/1000 [00:01<00:01, 340.17it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 362.05it/s, est. speed input: 40261.48 toks/s, output: 724.52 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 358.55it/s, est. speed input: 40010.26 toks/s, output: 717.61 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.24it/s, est. speed input: 40154.78 toks/s, output: 720.99 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.98it/s, est. speed input: 42436.70 toks/s, output: 764.55 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.53it/s, est. speed input: 42383.45 toks/s, output: 757.62 toks/s]
-Scoring addition:  64%|██████▍   | 640/1000 [00:02<00:01, 340.66it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 362.32it/s, est. speed input: 40472.79 toks/s, output: 725.08 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.71it/s, est. speed input: 42213.09 toks/s, output: 757.95 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.16it/s, est. speed input: 42487.61 toks/s, output: 762.89 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 377.38it/s, est. speed input: 42070.05 toks/s, output: 755.38 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.51it/s, est. speed input: 42347.53 toks/s, output: 759.53 toks/s]
-Scoring addition:  68%|██████▊   | 680/1000 [00:02<00:00, 342.79it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 361.80it/s, est. speed input: 40465.64 toks/s, output: 724.15 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.44it/s, est. speed input: 40171.61 toks/s, output: 721.30 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.82it/s, est. speed input: 42316.93 toks/s, output: 758.10 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.30it/s, est. speed input: 42168.79 toks/s, output: 757.16 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.48it/s, est. speed input: 40114.07 toks/s, output: 719.46 toks/s]
-Scoring addition:  72%|███████▏  | 720/1000 [00:02<00:00, 342.25it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.50it/s, est. speed input: 42717.20 toks/s, output: 763.57 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 363.78it/s, est. speed input: 40595.91 toks/s, output: 728.10 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 362.29it/s, est. speed input: 40427.03 toks/s, output: 725.07 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.12it/s, est. speed input: 42461.32 toks/s, output: 760.70 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.82it/s, est. speed input: 42316.93 toks/s, output: 758.11 toks/s]
-Scoring addition:  76%|███████▌  | 760/1000 [00:02<00:00, 343.21it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.52it/s, est. speed input: 42552.29 toks/s, output: 761.48 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.25it/s, est. speed input: 42317.35 toks/s, output: 758.98 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.74it/s, est. speed input: 42388.36 toks/s, output: 761.95 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.30it/s, est. speed input: 40134.08 toks/s, output: 719.02 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.28it/s, est. speed input: 40181.18 toks/s, output: 719.06 toks/s]
-Scoring addition:  80%|████████  | 800/1000 [00:02<00:00, 343.69it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.18it/s, est. speed input: 42484.71 toks/s, output: 762.82 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.56it/s, est. speed input: 42304.36 toks/s, output: 759.60 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.55it/s, est. speed input: 42349.44 toks/s, output: 759.55 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 348.67it/s, est. speed input: 38906.82 toks/s, output: 697.80 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.37it/s, est. speed input: 42600.90 toks/s, output: 763.20 toks/s]
-Scoring addition:  84%|████████▍ | 840/1000 [00:02<00:00, 344.47it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.54it/s, est. speed input: 40165.50 toks/s, output: 719.57 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.21it/s, est. speed input: 42471.92 toks/s, output: 760.89 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.03it/s, est. speed input: 40018.90 toks/s, output: 718.56 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.76it/s, est. speed input: 42649.89 toks/s, output: 764.08 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 350.66it/s, est. speed input: 39127.36 toks/s, output: 701.76 toks/s]
-Scoring addition:  88%|████████▊ | 880/1000 [00:02<00:00, 342.94it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.73it/s, est. speed input: 42530.27 toks/s, output: 761.94 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.31it/s, est. speed input: 42434.46 toks/s, output: 761.08 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.99it/s, est. speed input: 42288.17 toks/s, output: 758.45 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.14it/s, est. speed input: 40195.96 toks/s, output: 720.93 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.90it/s, est. speed input: 40296.94 toks/s, output: 720.31 toks/s]
-Scoring addition:  92%|█████████▏| 920/1000 [00:02<00:00, 343.47it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 382.48it/s, est. speed input: 42677.94 toks/s, output: 765.44 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.16it/s, est. speed input: 42465.66 toks/s, output: 760.79 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 395.87it/s, est. speed input: 44222.50 toks/s, output: 792.24 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 397.25it/s, est. speed input: 44326.85 toks/s, output: 795.00 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.21it/s, est. speed input: 42264.65 toks/s, output: 758.88 toks/s]
-Scoring addition:  96%|█████████▌| 960/1000 [00:02<00:00, 347.64it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 361.73it/s, est. speed input: 40363.78 toks/s, output: 723.94 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 347.82it/s, est. speed input: 38855.89 toks/s, output: 696.12 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 347.08it/s, est. speed input: 38729.21 toks/s, output: 694.63 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.84it/s, est. speed input: 42547.18 toks/s, output: 762.24 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.53it/s, est. speed input: 42355.68 toks/s, output: 759.64 toks/s]
-Scoring addition: 100%|██████████| 1000/1000 [00:03<00:00, 344.35it/s]Scoring addition: 100%|██████████| 1000/1000 [00:03<00:00, 323.38it/s]
-[LOG][addition] id=0 gold=Correct pred=Incorrect
-    Problem: 2 + 9; assistant answer: 11
-    judge output: Incorrect
-
-[LOG][addition] id=1 gold=Incorrect pred=Incorrect
-    Problem: 8 + 9; assistant answer: 22
-    judge output: Incorrect
-
-[LOG][addition] id=2 gold=Correct pred=Incorrect
-    Problem: 1 + 2; assistant answer: 3
-    judge output: Incorrect
-
-Scoring subtraction:   0%|          | 0/1000 [00:00<?, ?it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 294.55it/s, est. speed input: 32717.34 toks/s, output: 589.45 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 326.34it/s, est. speed input: 36292.94 toks/s, output: 653.12 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 333.02it/s, est. speed input: 36992.76 toks/s, output: 666.46 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 336.00it/s, est. speed input: 37325.30 toks/s, output: 672.46 toks/s]
-Scoring subtraction:   3%|▎         | 32/1000 [00:00<00:03, 300.78it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 338.74it/s, est. speed input: 37629.62 toks/s, output: 677.94 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.13it/s, est. speed input: 37671.10 toks/s, output: 678.68 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 337.94it/s, est. speed input: 37535.95 toks/s, output: 676.27 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 335.62it/s, est. speed input: 37321.70 toks/s, output: 671.64 toks/s]
-Scoring subtraction:   6%|▋         | 64/1000 [00:00<00:03, 309.10it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 335.49it/s, est. speed input: 37264.42 toks/s, output: 671.36 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 337.07it/s, est. speed input: 37440.48 toks/s, output: 674.53 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 335.98it/s, est. speed input: 37322.68 toks/s, output: 672.41 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.81it/s, est. speed input: 37745.17 toks/s, output: 680.02 toks/s]
-Scoring subtraction:  10%|▉         | 96/1000 [00:00<00:02, 311.61it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 346.53it/s, est. speed input: 38545.09 toks/s, output: 693.65 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.03it/s, est. speed input: 37665.39 toks/s, output: 678.59 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 358.20it/s, est. speed input: 39790.84 toks/s, output: 716.88 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.95it/s, est. speed input: 37761.24 toks/s, output: 680.32 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.63it/s, est. speed input: 37727.20 toks/s, output: 679.69 toks/s]
-Scoring subtraction:  14%|█▎        | 136/1000 [00:00<00:02, 315.25it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 338.77it/s, est. speed input: 37671.99 toks/s, output: 677.94 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 341.55it/s, est. speed input: 37938.94 toks/s, output: 683.51 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 361.55it/s, est. speed input: 40161.98 toks/s, output: 723.56 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.77it/s, est. speed input: 40073.83 toks/s, output: 721.97 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.25it/s, est. speed input: 42239.86 toks/s, output: 760.99 toks/s]
-Scoring subtraction:  18%|█▊        | 176/1000 [00:00<00:02, 321.09it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.64it/s, est. speed input: 39948.32 toks/s, output: 719.71 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 341.72it/s, est. speed input: 37957.12 toks/s, output: 683.84 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.39it/s, est. speed input: 42255.20 toks/s, output: 761.28 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 357.19it/s, est. speed input: 39675.97 toks/s, output: 714.81 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.74it/s, est. speed input: 42294.54 toks/s, output: 761.98 toks/s]
-Scoring subtraction:  22%|██▏       | 216/1000 [00:00<00:02, 326.75it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.09it/s, est. speed input: 39999.38 toks/s, output: 720.62 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.41it/s, est. speed input: 37699.70 toks/s, output: 679.20 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.85it/s, est. speed input: 42092.35 toks/s, output: 758.34 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.93it/s, est. speed input: 39982.20 toks/s, output: 720.31 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.73it/s, est. speed input: 40068.66 toks/s, output: 721.88 toks/s]
-Scoring subtraction:  26%|██▌       | 256/1000 [00:00<00:02, 329.28it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.15it/s, est. speed input: 39899.54 toks/s, output: 718.84 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.16it/s, est. speed input: 39899.54 toks/s, output: 718.83 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.47it/s, est. speed input: 42159.06 toks/s, output: 759.53 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.05it/s, est. speed input: 37663.48 toks/s, output: 678.56 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 385.55it/s, est. speed input: 42833.97 toks/s, output: 771.70 toks/s]
-Scoring subtraction:  30%|██▉       | 296/1000 [00:00<00:02, 331.95it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.74it/s, est. speed input: 42405.78 toks/s, output: 763.96 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.91it/s, est. speed input: 42202.05 toks/s, output: 760.30 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 358.61it/s, est. speed input: 39883.37 toks/s, output: 717.74 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 356.16it/s, est. speed input: 39588.67 toks/s, output: 713.12 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 354.36it/s, est. speed input: 39368.57 toks/s, output: 709.25 toks/s]
-Scoring subtraction:  34%|███▎      | 336/1000 [00:01<00:01, 333.74it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 363.72it/s, est. speed input: 40401.59 toks/s, output: 727.88 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 360.41it/s, est. speed input: 40034.63 toks/s, output: 721.27 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.43it/s, est. speed input: 42370.56 toks/s, output: 763.36 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.17it/s, est. speed input: 42007.85 toks/s, output: 756.82 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.16it/s, est. speed input: 42017.33 toks/s, output: 756.98 toks/s]
-Scoring subtraction:  38%|███▊      | 376/1000 [00:01<00:01, 337.21it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.64it/s, est. speed input: 42070.96 toks/s, output: 757.94 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.88it/s, est. speed input: 42422.68 toks/s, output: 764.29 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.56it/s, est. speed input: 42386.48 toks/s, output: 763.62 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.49it/s, est. speed input: 42043.89 toks/s, output: 757.47 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 335.81it/s, est. speed input: 37303.99 toks/s, output: 672.08 toks/s]
-Scoring subtraction:  42%|████▏     | 416/1000 [00:01<00:01, 338.69it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 362.14it/s, est. speed input: 40234.87 toks/s, output: 724.88 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.88it/s, est. speed input: 39978.77 toks/s, output: 720.26 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.66it/s, est. speed input: 42335.44 toks/s, output: 761.86 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 377.13it/s, est. speed input: 41892.56 toks/s, output: 754.74 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.78it/s, est. speed input: 42349.87 toks/s, output: 762.12 toks/s]
-Scoring subtraction:  46%|████▌     | 456/1000 [00:01<00:01, 340.08it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 339.04it/s, est. speed input: 37668.82 toks/s, output: 678.65 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.00it/s, est. speed input: 42215.44 toks/s, output: 760.56 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 371.29it/s, est. speed input: 41272.36 toks/s, output: 743.44 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.52it/s, est. speed input: 42419.78 toks/s, output: 764.11 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 399.18it/s, est. speed input: 44423.03 toks/s, output: 799.29 toks/s]
-Scoring subtraction:  50%|████▉     | 496/1000 [00:01<00:01, 339.49it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 404.34it/s, est. speed input: 44948.73 toks/s, output: 809.64 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.48it/s, est. speed input: 42245.27 toks/s, output: 760.10 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 407.64it/s, est. speed input: 45366.72 toks/s, output: 816.25 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 402.13it/s, est. speed input: 44702.19 toks/s, output: 805.21 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 394.91it/s, est. speed input: 43928.99 toks/s, output: 790.52 toks/s]
-Scoring subtraction:  54%|█████▎    | 536/1000 [00:01<00:01, 342.14it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 385.61it/s, est. speed input: 42838.89 toks/s, output: 771.78 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 349.32it/s, est. speed input: 38891.99 toks/s, output: 699.10 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 382.40it/s, est. speed input: 42555.77 toks/s, output: 765.81 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 379.36it/s, est. speed input: 42143.79 toks/s, output: 759.25 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 382.77it/s, est. speed input: 42521.97 toks/s, output: 766.07 toks/s]
-Scoring subtraction:  58%|█████▊    | 576/1000 [00:01<00:01, 343.47it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.25it/s, est. speed input: 42018.75 toks/s, output: 757.00 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 358.17it/s, est. speed input: 39814.66 toks/s, output: 717.30 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 374.14it/s, est. speed input: 41585.26 toks/s, output: 749.19 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 374.17it/s, est. speed input: 41579.22 toks/s, output: 749.08 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 375.99it/s, est. speed input: 41775.56 toks/s, output: 752.63 toks/s]
-Scoring subtraction:  62%|██████▏   | 616/1000 [00:01<00:01, 342.50it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 383.87it/s, est. speed input: 42645.64 toks/s, output: 768.30 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 352.62it/s, est. speed input: 39199.93 toks/s, output: 706.23 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 361.64it/s, est. speed input: 40227.05 toks/s, output: 724.62 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 383.80it/s, est. speed input: 42725.38 toks/s, output: 769.60 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 399.50it/s, est. speed input: 44470.55 toks/s, output: 801.03 toks/s]
-Scoring subtraction:  66%|██████▌   | 656/1000 [00:01<00:01, 340.38it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 404.46it/s, est. speed input: 45010.66 toks/s, output: 810.75 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 406.90it/s, est. speed input: 45238.08 toks/s, output: 814.85 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.68it/s, est. speed input: 42473.36 toks/s, output: 764.21 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 399.36it/s, est. speed input: 44395.81 toks/s, output: 799.68 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 401.40it/s, est. speed input: 44591.41 toks/s, output: 803.34 toks/s]
-Scoring subtraction:  70%|██████▉   | 696/1000 [00:02<00:00, 341.95it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 378.67it/s, est. speed input: 42068.58 toks/s, output: 757.90 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 372.72it/s, est. speed input: 41433.06 toks/s, output: 746.33 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 396.36it/s, est. speed input: 44088.90 toks/s, output: 794.15 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 397.09it/s, est. speed input: 44160.51 toks/s, output: 795.45 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.45it/s, est. speed input: 42300.31 toks/s, output: 761.94 toks/s]
-Scoring subtraction:  74%|███████▎  | 736/1000 [00:02<00:00, 342.04it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 371.63it/s, est. speed input: 41339.00 toks/s, output: 743.94 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 365.06it/s, est. speed input: 40592.25 toks/s, output: 731.31 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.61it/s, est. speed input: 42291.66 toks/s, output: 761.92 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.19it/s, est. speed input: 39915.79 toks/s, output: 719.12 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 382.52it/s, est. speed input: 42547.03 toks/s, output: 765.66 toks/s]
-Scoring subtraction:  78%|███████▊  | 776/1000 [00:02<00:00, 340.73it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 373.63it/s, est. speed input: 41535.64 toks/s, output: 748.19 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 332.15it/s, est. speed input: 36921.62 toks/s, output: 665.08 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 390.88it/s, est. speed input: 43454.66 toks/s, output: 782.70 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 397.27it/s, est. speed input: 44161.56 toks/s, output: 795.45 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 391.86it/s, est. speed input: 43563.42 toks/s, output: 784.68 toks/s]
-Scoring subtraction:  82%|████████▏ | 816/1000 [00:02<00:00, 335.60it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 399.73it/s, est. speed input: 44522.22 toks/s, output: 801.06 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 411.19it/s, est. speed input: 45715.61 toks/s, output: 823.44 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 394.42it/s, est. speed input: 43899.51 toks/s, output: 789.86 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 401.18it/s, est. speed input: 44598.35 toks/s, output: 803.32 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 395.46it/s, est. speed input: 43962.44 toks/s, output: 791.87 toks/s]
-Scoring subtraction:  86%|████████▌ | 856/1000 [00:02<00:00, 338.76it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 402.67it/s, est. speed input: 44764.52 toks/s, output: 806.33 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 393.25it/s, est. speed input: 43714.77 toks/s, output: 787.41 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 400.49it/s, est. speed input: 44523.18 toks/s, output: 801.98 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 359.24it/s, est. speed input: 39996.74 toks/s, output: 719.65 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 400.63it/s, est. speed input: 44543.94 toks/s, output: 802.34 toks/s]
-Scoring subtraction:  90%|████████▉ | 896/1000 [00:02<00:00, 339.42it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 355.25it/s, est. speed input: 39557.15 toks/s, output: 711.74 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.68it/s, est. speed input: 42369.11 toks/s, output: 762.45 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 354.92it/s, est. speed input: 39501.84 toks/s, output: 710.87 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 375.71it/s, est. speed input: 41754.49 toks/s, output: 752.24 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 373.49it/s, est. speed input: 41497.23 toks/s, output: 747.61 toks/s]
-Scoring subtraction:  94%|█████████▎| 936/1000 [00:02<00:00, 336.99it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 384.00it/s, est. speed input: 42668.60 toks/s, output: 768.70 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 382.64it/s, est. speed input: 42572.29 toks/s, output: 766.10 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.88it/s, est. speed input: 42428.97 toks/s, output: 764.37 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 380.45it/s, est. speed input: 42269.58 toks/s, output: 761.53 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.70it/s, est. speed input: 42407.71 toks/s, output: 764.02 toks/s]
-Scoring subtraction:  98%|█████████▊| 976/1000 [00:02<00:00, 341.17it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 383.25it/s, est. speed input: 42578.36 toks/s, output: 767.09 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 381.87it/s, est. speed input: 42434.28 toks/s, output: 764.49 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 382.12it/s, est. speed input: 42452.66 toks/s, output: 764.82 toks/s]
-Scoring subtraction: 100%|██████████| 1000/1000 [00:02<00:00, 336.11it/s]
-[LOG][subtraction] id=0 gold=Correct pred=Incorrect
-    Problem: 1 - 6; assistant answer: -5
-    judge output: Incorrect
-
-[LOG][subtraction] id=1 gold=Incorrect pred=Incorrect
-    Problem: 2 - 8; assistant answer: -5
-    judge output: Incorrect
-
-[LOG][subtraction] id=2 gold=Correct pred=Incorrect
-    Problem: 7 - 2; assistant answer: 5
-    judge output: Incorrect
-
-Scoring composite:   0%|          | 0/1000 [00:00<?, ?it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 172.27it/s, est. speed input: 58423.87 toks/s, output: 344.66 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 189.86it/s, est. speed input: 64274.24 toks/s, output: 379.88 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 191.47it/s, est. speed input: 64914.56 toks/s, output: 383.09 toks/s]
-Scoring composite:   2%|▏         | 24/1000 [00:00<00:05, 170.72it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 194.30it/s, est. speed input: 65678.37 toks/s, output: 388.75 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 193.97it/s, est. speed input: 65882.42 toks/s, output: 388.09 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 191.84it/s, est. speed input: 65016.44 toks/s, output: 383.84 toks/s]
-Scoring composite:   5%|▍         | 48/1000 [00:00<00:05, 175.56it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 187.18it/s, est. speed input: 63395.00 toks/s, output: 374.68 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 192.86it/s, est. speed input: 65555.60 toks/s, output: 386.03 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 193.63it/s, est. speed input: 65689.28 toks/s, output: 387.53 toks/s]
-Scoring composite:   7%|▋         | 72/1000 [00:00<00:05, 175.33it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 191.34it/s, est. speed input: 64918.49 toks/s, output: 382.98 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 192.25it/s, est. speed input: 65142.98 toks/s, output: 384.73 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 195.80it/s, est. speed input: 66238.48 toks/s, output: 391.77 toks/s]
-Scoring composite:  10%|▉         | 96/1000 [00:00<00:05, 176.03it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 206.16it/s, est. speed input: 69899.05 toks/s, output: 412.51 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 192.02it/s, est. speed input: 65053.84 toks/s, output: 384.20 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 193.07it/s, est. speed input: 65312.66 toks/s, output: 386.30 toks/s]
-Scoring composite:  12%|█▏        | 120/1000 [00:00<00:04, 177.87it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 195.72it/s, est. speed input: 66063.02 toks/s, output: 391.61 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 195.05it/s, est. speed input: 65906.83 toks/s, output: 390.25 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 192.71it/s, est. speed input: 65477.63 toks/s, output: 385.57 toks/s]
-Scoring composite:  14%|█▍        | 144/1000 [00:00<00:04, 178.49it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 195.78it/s, est. speed input: 66374.56 toks/s, output: 391.71 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 187.50it/s, est. speed input: 63541.18 toks/s, output: 375.27 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 194.87it/s, est. speed input: 66012.49 toks/s, output: 390.01 toks/s]
-Scoring composite:  17%|█▋        | 168/1000 [00:00<00:04, 177.93it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 192.29it/s, est. speed input: 65265.46 toks/s, output: 384.74 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 191.06it/s, est. speed input: 64850.15 toks/s, output: 382.30 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 207.28it/s, est. speed input: 70156.12 toks/s, output: 414.80 toks/s]
-Scoring composite:  19%|█▉        | 192/1000 [00:01<00:04, 178.85it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 198.36it/s, est. speed input: 67003.48 toks/s, output: 396.89 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 185.08it/s, est. speed input: 62847.29 toks/s, output: 370.47 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 205.46it/s, est. speed input: 69619.38 toks/s, output: 411.14 toks/s]
-Scoring composite:  22%|██▏       | 216/1000 [00:01<00:04, 178.75it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 193.49it/s, est. speed input: 65748.50 toks/s, output: 387.15 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 211.94it/s, est. speed input: 71733.76 toks/s, output: 424.10 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 200.02it/s, est. speed input: 67793.71 toks/s, output: 400.22 toks/s]
-Scoring composite:  24%|██▍       | 240/1000 [00:01<00:04, 179.21it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 194.03it/s, est. speed input: 65830.32 toks/s, output: 388.32 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 210.79it/s, est. speed input: 71371.43 toks/s, output: 421.81 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 188.74it/s, est. speed input: 64043.64 toks/s, output: 377.66 toks/s]
-Scoring composite:  26%|██▋       | 264/1000 [00:01<00:04, 178.44it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 210.74it/s, est. speed input: 71454.88 toks/s, output: 421.67 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 204.24it/s, est. speed input: 69200.46 toks/s, output: 408.67 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 212.47it/s, est. speed input: 72067.72 toks/s, output: 425.13 toks/s]
-Scoring composite:  29%|██▉       | 288/1000 [00:01<00:03, 180.14it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 190.07it/s, est. speed input: 64466.68 toks/s, output: 380.30 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 198.30it/s, est. speed input: 67268.80 toks/s, output: 396.83 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 206.09it/s, est. speed input: 69824.31 toks/s, output: 412.36 toks/s]
-Scoring composite:  31%|███       | 312/1000 [00:01<00:03, 178.71it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 193.60it/s, est. speed input: 65664.63 toks/s, output: 387.36 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 184.31it/s, est. speed input: 62541.68 toks/s, output: 368.80 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 206.63it/s, est. speed input: 70088.56 toks/s, output: 413.46 toks/s]
-Scoring composite:  34%|███▎      | 336/1000 [00:01<00:03, 176.79it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 195.62it/s, est. speed input: 66148.96 toks/s, output: 391.50 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 191.01it/s, est. speed input: 64630.31 toks/s, output: 382.25 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 215.19it/s, est. speed input: 72938.56 toks/s, output: 430.74 toks/s]
-Scoring composite:  36%|███▌      | 360/1000 [00:02<00:03, 176.48it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 194.15it/s, est. speed input: 65738.63 toks/s, output: 388.52 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 195.64it/s, est. speed input: 66269.00 toks/s, output: 391.51 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 198.07it/s, est. speed input: 67001.42 toks/s, output: 396.42 toks/s]
-Scoring composite:  38%|███▊      | 384/1000 [00:02<00:03, 175.01it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 206.05it/s, est. speed input: 69960.49 toks/s, output: 412.39 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 188.94it/s, est. speed input: 63841.32 toks/s, output: 378.26 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 206.57it/s, est. speed input: 70063.58 toks/s, output: 413.44 toks/s]
-Scoring composite:  41%|████      | 408/1000 [00:02<00:03, 172.09it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 203.64it/s, est. speed input: 69050.22 toks/s, output: 407.61 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 217.93it/s, est. speed input: 73737.37 toks/s, output: 436.24 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 219.68it/s, est. speed input: 74496.25 toks/s, output: 439.76 toks/s]
-Scoring composite:  43%|████▎     | 432/1000 [00:02<00:03, 174.91it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 215.01it/s, est. speed input: 72858.52 toks/s, output: 430.56 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 211.25it/s, est. speed input: 71572.36 toks/s, output: 422.81 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 210.49it/s, est. speed input: 71351.95 toks/s, output: 421.35 toks/s]
-Scoring composite:  46%|████▌     | 456/1000 [00:02<00:03, 176.96it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 199.99it/s, est. speed input: 67810.29 toks/s, output: 400.29 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 215.44it/s, est. speed input: 73186.41 toks/s, output: 431.39 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 203.12it/s, est. speed input: 68800.75 toks/s, output: 406.58 toks/s]
-Scoring composite:  48%|████▊     | 480/1000 [00:02<00:02, 177.06it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 200.79it/s, est. speed input: 68005.42 toks/s, output: 401.89 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 201.96it/s, est. speed input: 68608.70 toks/s, output: 404.26 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 180.00it/s, est. speed input: 61008.30 toks/s, output: 360.28 toks/s]
-Scoring composite:  50%|█████     | 504/1000 [00:02<00:02, 173.92it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 192.78it/s, est. speed input: 65479.47 toks/s, output: 385.82 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 195.51it/s, est. speed input: 66162.00 toks/s, output: 391.28 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 192.73it/s, est. speed input: 65337.10 toks/s, output: 385.70 toks/s]
-Scoring composite:  53%|█████▎    | 528/1000 [00:02<00:02, 171.57it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 213.97it/s, est. speed input: 72678.35 toks/s, output: 428.23 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 191.97it/s, est. speed input: 64964.11 toks/s, output: 384.20 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 186.21it/s, est. speed input: 63082.75 toks/s, output: 372.66 toks/s]
-Scoring composite:  55%|█████▌    | 552/1000 [00:03<00:02, 170.81it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 189.89it/s, est. speed input: 64529.58 toks/s, output: 380.08 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 217.19it/s, est. speed input: 73559.97 toks/s, output: 434.71 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 184.45it/s, est. speed input: 62580.89 toks/s, output: 369.15 toks/s]
-Scoring composite:  58%|█████▊    | 576/1000 [00:03<00:02, 170.50it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 201.68it/s, est. speed input: 68351.66 toks/s, output: 403.63 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 208.17it/s, est. speed input: 70503.23 toks/s, output: 416.64 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 204.55it/s, est. speed input: 69512.20 toks/s, output: 409.43 toks/s]
-Scoring composite:  60%|██████    | 600/1000 [00:03<00:02, 167.27it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 237.50it/s, est. speed input: 80239.63 toks/s, output: 475.40 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 222.34it/s, est. speed input: 75366.27 toks/s, output: 445.05 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 207.64it/s, est. speed input: 70274.41 toks/s, output: 415.60 toks/s]
-Scoring composite:  62%|██████▏   | 624/1000 [00:03<00:02, 168.49it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 252.92it/s, est. speed input: 85355.83 toks/s, output: 506.27 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 206.45it/s, est. speed input: 70097.92 toks/s, output: 413.18 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 187.31it/s, est. speed input: 63523.79 toks/s, output: 374.86 toks/s]
-Scoring composite:  65%|██████▍   | 648/1000 [00:03<00:02, 166.75it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 216.66it/s, est. speed input: 73407.84 toks/s, output: 433.65 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 202.95it/s, est. speed input: 68654.61 toks/s, output: 406.17 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 257.64it/s, est. speed input: 87177.15 toks/s, output: 515.73 toks/s]
-Scoring composite:  67%|██████▋   | 672/1000 [00:03<00:01, 167.11it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 193.84it/s, est. speed input: 65738.71 toks/s, output: 387.92 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 202.20it/s, est. speed input: 68633.84 toks/s, output: 404.70 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 207.54it/s, est. speed input: 70210.59 toks/s, output: 415.38 toks/s]
-Scoring composite:  70%|██████▉   | 696/1000 [00:04<00:01, 166.81it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 186.59it/s, est. speed input: 63280.21 toks/s, output: 373.42 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 199.67it/s, est. speed input: 67515.51 toks/s, output: 399.59 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 216.51it/s, est. speed input: 73405.13 toks/s, output: 433.32 toks/s]
-Scoring composite:  72%|███████▏  | 720/1000 [00:04<00:01, 168.14it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 207.14it/s, est. speed input: 70360.31 toks/s, output: 414.58 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 198.80it/s, est. speed input: 67375.28 toks/s, output: 397.87 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 191.67it/s, est. speed input: 64931.69 toks/s, output: 383.58 toks/s]
-Scoring composite:  74%|███████▍  | 744/1000 [00:04<00:01, 169.71it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 214.90it/s, est. speed input: 72835.70 toks/s, output: 430.11 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 214.30it/s, est. speed input: 72630.85 toks/s, output: 428.90 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 200.76it/s, est. speed input: 68189.65 toks/s, output: 401.79 toks/s]
-Scoring composite:  77%|███████▋  | 768/1000 [00:04<00:01, 172.69it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 267.02it/s, est. speed input: 90552.19 toks/s, output: 534.51 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 204.95it/s, est. speed input: 69336.66 toks/s, output: 410.18 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 215.36it/s, est. speed input: 73071.40 toks/s, output: 431.02 toks/s]
-Scoring composite:  79%|███████▉  | 792/1000 [00:04<00:01, 178.10it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 203.52it/s, est. speed input: 69102.60 toks/s, output: 407.32 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 199.92it/s, est. speed input: 67654.10 toks/s, output: 400.11 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 199.71it/s, est. speed input: 67582.77 toks/s, output: 399.68 toks/s]
-Scoring composite:  82%|████████▏ | 816/1000 [00:04<00:01, 176.84it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 200.41it/s, est. speed input: 67969.93 toks/s, output: 401.08 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 199.58it/s, est. speed input: 67637.58 toks/s, output: 399.42 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 212.03it/s, est. speed input: 71967.08 toks/s, output: 424.35 toks/s]
-Scoring composite:  84%|████████▍ | 840/1000 [00:04<00:00, 176.58it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 202.35it/s, est. speed input: 68603.46 toks/s, output: 404.97 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 207.32it/s, est. speed input: 70338.63 toks/s, output: 414.91 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 198.70it/s, est. speed input: 67237.12 toks/s, output: 397.65 toks/s]
-Scoring composite:  86%|████████▋ | 864/1000 [00:04<00:00, 176.35it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 210.73it/s, est. speed input: 71442.89 toks/s, output: 421.74 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 192.38it/s, est. speed input: 65169.75 toks/s, output: 385.00 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 203.68it/s, est. speed input: 69054.41 toks/s, output: 407.64 toks/s]
-Scoring composite:  89%|████████▉ | 888/1000 [00:05<00:00, 176.05it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 200.46it/s, est. speed input: 67933.19 toks/s, output: 401.17 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 220.10it/s, est. speed input: 74679.47 toks/s, output: 440.51 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 205.07it/s, est. speed input: 69527.50 toks/s, output: 410.42 toks/s]
-Scoring composite:  91%|█████████ | 912/1000 [00:05<00:00, 177.31it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 206.81it/s, est. speed input: 70301.38 toks/s, output: 413.92 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 215.35it/s, est. speed input: 72988.70 toks/s, output: 431.01 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 213.47it/s, est. speed input: 72403.08 toks/s, output: 427.24 toks/s]
-Scoring composite:  94%|█████████▎| 936/1000 [00:05<00:00, 175.30it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 252.09it/s, est. speed input: 85505.96 toks/s, output: 504.73 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 199.09it/s, est. speed input: 67533.95 toks/s, output: 398.50 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 183.47it/s, est. speed input: 62056.58 toks/s, output: 367.15 toks/s]
-Scoring composite:  96%|█████████▌| 960/1000 [00:05<00:00, 175.47it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 215.04it/s, est. speed input: 72853.18 toks/s, output: 430.38 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 210.35it/s, est. speed input: 71292.40 toks/s, output: 421.00 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 197.96it/s, est. speed input: 67040.91 toks/s, output: 396.19 toks/s]
-Scoring composite:  98%|█████████▊| 984/1000 [00:05<00:00, 177.19it/s]
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 187.67it/s, est. speed input: 63642.90 toks/s, output: 375.56 toks/s]
-
-Processed prompts:   0%|          | 0/8 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s][AProcessed prompts: 100%|██████████| 8/8 [00:00<00:00, 200.56it/s, est. speed input: 67970.98 toks/s, output: 401.39 toks/s]
-Scoring composite: 100%|██████████| 1000/1000 [00:05<00:00, 174.48it/s]
-[LOG][composite] id=0 gold=Correct pred=Incorrect
-    Steps: Step 1: 2 + 9 = 11.
-Step 2: 1 - 6 = -5.
-Final: 11 - -5 = 16. | true final: 16 | assistant final: 16
-    judge output: Incorrect
-
-[LOG][composite] id=1 gold=Incorrect pred=Incorrect
-    Steps: Step 1: 8 + 9 = 22.
-Step 2: 2 - 8 = -5.
-Final: 22 - -5 = 23. | true final: 23 | assistant final: 23
-    judge output: Incorrect
-
-[LOG][composite] id=2 gold=Correct pred=Incorrect
-    Steps: Step 1: 1 + 2 = 3.
-Step 2: 7 - 2 = 5.
-Final: 3 - 5 = -2. | true final: -2 | assistant final: -2
-    judge output: Incorrect
-
-
-=== Accuracy Summary ===
-    addition: acc=0.407 ± 0.492 (n=1000, unresolved=0)
- subtraction: acc=0.422 ± 0.494 (n=1000, unresolved=0)
-   composite: acc=0.632 ± 0.483 (n=1000, unresolved=0)
-
-Composite vs worst subtask (addition): Δacc=0.225, z=10.070, p=0
-
-Saved detailed report to /home/changho/compositional-something/composite_runs/Qwen_Qwen3-1.7B_seed37.json
-[2025-10-09T11:13:52-05:00] Finished composite run model=Qwen/Qwen3-1.7B seed=37

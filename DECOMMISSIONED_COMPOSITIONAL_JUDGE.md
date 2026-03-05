@@ -1,0 +1,1 @@
+- Removed in commit <sha>; history retained intentionally.
