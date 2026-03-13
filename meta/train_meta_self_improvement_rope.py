@@ -31,6 +31,7 @@ from torch.utils.data import DataLoader, Dataset
 
 ExampleKey = Tuple[int, int, int]  # (digits, a, b)
 NUMERIC_PATTERN = re.compile(r"[-+]?\d+")
+DEFAULT_PROGRESSIVE_STAGE_CONFIGS = ",".join(f"96x4x{depth}" for depth in range(2, 26))
 
 
 @dataclass(frozen=True)
@@ -1325,6 +1326,21 @@ def load_component_map_augments_jsonl(path: Path) -> Dict[ExampleKey, List[Examp
     return component_map
 
 
+def serialize_prediction_targets(prediction_targets: Dict[ExampleKey, str]) -> Dict[str, str]:
+    return {encode_key(key): value for key, value in prediction_targets.items()}
+
+
+def deserialize_prediction_targets(payload: Optional[Dict[str, object]]) -> Dict[ExampleKey, str]:
+    if not payload:
+        return {}
+    decoded: Dict[ExampleKey, str] = {}
+    for raw_key, raw_value in payload.items():
+        if raw_value is None:
+            continue
+        decoded[decode_key(str(raw_key))] = str(raw_value)
+    return decoded
+
+
 def parse_stage_configs(raw: str) -> List[ModelStageConfig]:
     configs: List[ModelStageConfig] = []
     for chunk in raw.split(","):
@@ -1366,6 +1382,79 @@ def instantiate_model(
     )
     model.to(device)
     return model
+
+
+def validate_progressive_transition(
+    prev_cfg: ModelStageConfig,
+    next_cfg: ModelStageConfig,
+) -> None:
+    mismatches: List[str] = []
+    if next_cfg.d_model != prev_cfg.d_model:
+        mismatches.append(f"d_model must stay fixed ({prev_cfg.d_model} -> {next_cfg.d_model})")
+    if next_cfg.n_heads != prev_cfg.n_heads:
+        mismatches.append(f"n_heads must stay fixed ({prev_cfg.n_heads} -> {next_cfg.n_heads})")
+    if next_cfg.n_layers < prev_cfg.n_layers:
+        mismatches.append(f"n_layers must be non-decreasing ({prev_cfg.n_layers} -> {next_cfg.n_layers})")
+    if mismatches:
+        raise ValueError("; ".join(mismatches))
+
+
+def make_identity_block(
+    block: TransformerBlock,
+    *,
+    reference_block: Optional[TransformerBlock] = None,
+) -> None:
+    with torch.no_grad():
+        if reference_block is not None:
+            block.load_state_dict(reference_block.state_dict())
+        else:
+            nn.init.ones_(block.norm1.weight)
+            nn.init.zeros_(block.norm1.bias)
+            nn.init.ones_(block.norm2.weight)
+            nn.init.zeros_(block.norm2.bias)
+
+        # Keep the internal transforms alive and zero only the residual outputs.
+        # This preserves the exact function at expansion time while still giving
+        # the new block a gradient path on the first optimizer step.
+        nn.init.zeros_(block.attn.out_proj.weight)
+        if block.attn.out_proj.bias is not None:
+            nn.init.zeros_(block.attn.out_proj.bias)
+        mlp_out = block.mlp[2]
+        if not isinstance(mlp_out, nn.Linear):
+            raise TypeError("Expected the MLP output projection to be an nn.Linear.")
+        nn.init.zeros_(mlp_out.weight)
+        if mlp_out.bias is not None:
+            nn.init.zeros_(mlp_out.bias)
+
+
+def expand_model_progressive(
+    current_model: MiniTransformerLM,
+    next_cfg: ModelStageConfig,
+    args: argparse.Namespace,
+    tokenizer: AdditionTokenizer,
+    device: torch.device,
+) -> MiniTransformerLM:
+    if not current_model.blocks:
+        raise ValueError("Progressive expansion requires at least one transformer block in the current model.")
+    prev_cfg = ModelStageConfig(
+        d_model=current_model.tok_emb.embedding_dim,
+        n_heads=current_model.blocks[0].attn.n_heads,
+        n_layers=len(current_model.blocks),
+    )
+    validate_progressive_transition(prev_cfg, next_cfg)
+
+    expanded_model = instantiate_model(tokenizer, next_cfg, args, device)
+    with torch.no_grad():
+        expanded_model.tok_emb.weight.copy_(current_model.tok_emb.weight)
+        expanded_model.norm.load_state_dict(current_model.norm.state_dict())
+        for layer_idx in range(prev_cfg.n_layers):
+            expanded_model.blocks[layer_idx].load_state_dict(current_model.blocks[layer_idx].state_dict())
+        donor_block = current_model.blocks[-1]
+        for layer_idx in range(prev_cfg.n_layers, next_cfg.n_layers):
+            make_identity_block(expanded_model.blocks[layer_idx], reference_block=donor_block)
+        expanded_model.lm_head.weight = expanded_model.tok_emb.weight
+    expanded_model.to(device)
+    return expanded_model
 
 
 def max_supported_digits_for_context_window(context_window: int) -> int:
@@ -1540,7 +1629,17 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Safety cap on total rounds including initial bootstrapping rounds.",
     )
 
-    parser.add_argument("--stage-configs", type=str, default="96x4x2,128x4x3,160x5x4")
+    parser.add_argument("--stage-configs", type=str, default=DEFAULT_PROGRESSIVE_STAGE_CONFIGS)
+    parser.add_argument(
+        "--capacity-growth-scheme",
+        type=str,
+        choices=("progressive", "legacy"),
+        default="progressive",
+        help=(
+            "Capacity growth method: progressive function-preserving expansion "
+            "or legacy fresh-stage initialization with optional distillation."
+        ),
+    )
     parser.add_argument("--ffn-mult", type=float, default=4.0)
     parser.add_argument("--dropout", type=float, default=0.0)
     parser.add_argument("--rope-base", type=float, default=10_000.0)
@@ -1578,8 +1677,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         default=0.0,
         help="Learning rate for growth distillation; 0 uses --learning-rate.",
     )
-    parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--eval-batch-size", type=int, default=256)
+    parser.add_argument("--batch-size", type=int, default=80)
+    parser.add_argument("--eval-batch-size", type=int, default=160)
     parser.add_argument(
         "--full-eval-interval",
         type=int,
@@ -1784,8 +1883,28 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
         device = torch.device(args.device)
+    cpu_device = torch.device("cpu")
 
     stage_cfgs = parse_stage_configs(args.stage_configs)
+    if args.capacity_growth_scheme == "progressive":
+        if len(stage_cfgs) < 2:
+            raise ValueError(
+                "Progressive capacity growth requires at least two stage configs, "
+                f"got {len(stage_cfgs)} from --stage-configs={args.stage_configs!r}. "
+                "Provide a stage ladder such as "
+                f"{DEFAULT_PROGRESSIVE_STAGE_CONFIGS!r} or switch to "
+                "--capacity-growth-scheme legacy for a single fixed-capacity run."
+            )
+        for transition_idx in range(len(stage_cfgs) - 1):
+            prev_cfg = stage_cfgs[transition_idx]
+            next_cfg = stage_cfgs[transition_idx + 1]
+            try:
+                validate_progressive_transition(prev_cfg, next_cfg)
+            except ValueError as exc:
+                raise ValueError(
+                    "Incompatible stage-configs for --capacity-growth-scheme=progressive at "
+                    f"transition {transition_idx}->{transition_idx + 1}: {exc}"
+                ) from exc
     tokenizer = AdditionTokenizer()
     max_context_digits = max_supported_digits_for_context_window(args.context_window)
     if args.initial_max_digits > max_context_digits:
@@ -1834,6 +1953,10 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     stop_reason = "max_total_rounds_reached"
     stop_requested = False
     signal_stop_reason: Optional[str] = None
+    component_teacher_model: Optional[MiniTransformerLM] = None
+    component_teacher_stage_idx: Optional[int] = None
+    component_teacher_frontier_max_digits: Optional[int] = None
+    component_teacher_prediction_targets: Dict[ExampleKey, str] = {}
 
     if args.resume_from_latest_state:
         if not continuation_state_path.exists():
@@ -1896,6 +2019,49 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         trained_at_final_frontier = bool(state.get("trained_at_final_frontier", False))
         round_idx = int(state.get("next_round_index", 0))
         latest_full_val_acc = float(state.get("latest_full_val_acc", math.nan))
+        component_teacher_stage_idx_raw = state.get("component_teacher_stage_idx")
+        component_teacher_frontier_raw = state.get("component_teacher_frontier_max_digits")
+        component_teacher_prediction_targets = deserialize_prediction_targets(
+            state.get("component_teacher_prediction_targets")
+        )
+        component_teacher_stage_idx = (
+            int(component_teacher_stage_idx_raw)
+            if component_teacher_stage_idx_raw is not None
+            else None
+        )
+        component_teacher_frontier_max_digits = (
+            int(component_teacher_frontier_raw)
+            if component_teacher_frontier_raw is not None
+            else None
+        )
+        component_teacher_state_dict = state.get("component_teacher_model_state_dict")
+        if args.capacity_growth_scheme == "progressive":
+            if component_teacher_stage_idx is not None:
+                if component_teacher_stage_idx < 0 or component_teacher_stage_idx >= len(stage_cfgs):
+                    raise ValueError(
+                        "Continuation state component-teacher stage index out of range: "
+                        f"{component_teacher_stage_idx} (available stages={len(stage_cfgs)})."
+                    )
+                if component_teacher_state_dict is not None:
+                    component_teacher_model = instantiate_model(
+                        tokenizer,
+                        stage_cfgs[component_teacher_stage_idx],
+                        args,
+                        cpu_device,
+                    )
+                    component_teacher_model.load_state_dict(component_teacher_state_dict)
+                    component_teacher_model.eval()
+                else:
+                    component_teacher_model = None
+            else:
+                component_teacher_model = None
+                component_teacher_frontier_max_digits = None
+                component_teacher_prediction_targets = {}
+        else:
+            component_teacher_model = None
+            component_teacher_stage_idx = None
+            component_teacher_frontier_max_digits = None
+            component_teacher_prediction_targets = {}
 
         if "python_rng_state" in state:
             rng.setstate(state["python_rng_state"])
@@ -1966,6 +2132,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         trained_at_final_frontier = False
 
     validation_initial = filter_examples_by_digits(validation, max_digits=args.initial_max_digits)
+    max_component_target_len = max(len(ex.true_target()) for ex in initial_train)
 
     def build_summary(current_stop_reason: str) -> Dict[str, object]:
         return {
@@ -2021,6 +2188,16 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             "initial_mastery_streak": initial_mastery_streak,
             "trained_at_final_frontier": trained_at_final_frontier,
             "latest_full_val_acc": latest_full_val_acc,
+            "component_teacher_stage_idx": component_teacher_stage_idx,
+            "component_teacher_frontier_max_digits": component_teacher_frontier_max_digits,
+            "component_teacher_prediction_targets": serialize_prediction_targets(
+                component_teacher_prediction_targets
+            ),
+            "component_teacher_model_state_dict": (
+                component_teacher_model.state_dict()
+                if component_teacher_model is not None
+                else None
+            ),
             "python_rng_state": rng.getstate(),
             "torch_rng_state": torch.random.get_rng_state(),
             "torch_cuda_rng_state_all": (
@@ -2054,6 +2231,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
     print(f"[INFO] Output dir: {output_dir}", flush=True)
     print(f"[INFO] Device: {device}", flush=True)
+    print(f"[INFO] Capacity growth scheme: {args.capacity_growth_scheme}", flush=True)
     print(f"[INFO] Stage configs: {[asdict(cfg) for cfg in stage_cfgs]}", flush=True)
     print(
         "[INFO] Dataset sizes: initial_train={} composed_pool={} validation={} initial_validation={}".format(
@@ -2133,18 +2311,28 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         just_grew = False
         if growth_pending:
             teacher_model = model
-            stage_idx += 1
-            if stage_idx >= len(stage_cfgs):
+            prev_stage_idx = stage_idx
+            next_stage_idx = stage_idx + 1
+            if next_stage_idx >= len(stage_cfgs):
                 raise RuntimeError("Internal error: growth pending but no next stage exists.")
-            model = instantiate_model(tokenizer, stage_cfgs[stage_idx], args, device)
             distill_loss = math.nan
+            distill_lr = (
+                args.growth_distill_learning_rate
+                if args.growth_distill_learning_rate > 0
+                else args.learning_rate
+            )
             seed_examples = dedupe_examples(pending_growth_seed or seed_examples)
-            if args.growth_distill_epochs > 0:
-                distill_lr = (
-                    args.growth_distill_learning_rate
-                    if args.growth_distill_learning_rate > 0
-                    else args.learning_rate
+            if args.capacity_growth_scheme == "progressive":
+                model = expand_model_progressive(
+                    teacher_model,
+                    stage_cfgs[next_stage_idx],
+                    args,
+                    tokenizer,
+                    device,
                 )
+            else:
+                model = instantiate_model(tokenizer, stage_cfgs[next_stage_idx], args, device)
+            if args.growth_distill_epochs > 0:
                 distill_loss = distill_warmstart_round(
                     model,
                     teacher_model,
@@ -2160,16 +2348,65 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                     temperature=args.growth_distill_temperature,
                 )
                 print(
-                    "[INFO] Growth distillation -> stage {}: epochs={} loss={:.4f} alpha={} temp={} lr={}".format(
-                        stage_idx,
-                        args.growth_distill_epochs,
-                        distill_loss if not math.isnan(distill_loss) else float("nan"),
-                        args.growth_distill_alpha,
-                        args.growth_distill_temperature,
-                        distill_lr,
+                    "[INFO] Growth distillation ({scheme}) -> stage {stage}: epochs={epochs} loss={loss:.4f} alpha={alpha} temp={temp} lr={lr}".format(
+                        scheme=args.capacity_growth_scheme,
+                        stage=next_stage_idx,
+                        epochs=args.growth_distill_epochs,
+                        loss=distill_loss if not math.isnan(distill_loss) else float("nan"),
+                        alpha=args.growth_distill_alpha,
+                        temp=args.growth_distill_temperature,
+                        lr=distill_lr,
                     ),
                     flush=True,
                 )
+            captured_component_teacher = False
+            reused_component_teacher = False
+            captured_component_teacher_prediction_count = 0
+            if args.capacity_growth_scheme == "progressive":
+                keep_existing_component_teacher = (
+                    component_teacher_frontier_max_digits == frontier_max_digits
+                    and len(component_teacher_prediction_targets) > 0
+                )
+                if keep_existing_component_teacher:
+                    reused_component_teacher = True
+                    captured_component_teacher_prediction_count = len(component_teacher_prediction_targets)
+                    print(
+                        "[INFO] Keeping existing component-label teacher: stage={} frontier<={} predictions={}".format(
+                            component_teacher_stage_idx,
+                            component_teacher_frontier_max_digits,
+                            captured_component_teacher_prediction_count,
+                        ),
+                        flush=True,
+                    )
+                else:
+                    component_teacher_prediction_targets = generate_prediction_map(
+                        teacher_model,
+                        initial_train,
+                        tokenizer,
+                        device=device,
+                        batch_size=args.eval_batch_size,
+                        max_new_tokens=max_component_target_len + 2,
+                    )
+                    component_teacher_model = teacher_model.to(cpu_device)
+                    component_teacher_model.eval()
+                    component_teacher_stage_idx = prev_stage_idx
+                    component_teacher_frontier_max_digits = frontier_max_digits
+                    captured_component_teacher = True
+                    captured_component_teacher_prediction_count = len(component_teacher_prediction_targets)
+                    print(
+                        "[INFO] Captured component-label teacher: stage={} frontier<={} predictions={}".format(
+                            component_teacher_stage_idx,
+                            component_teacher_frontier_max_digits,
+                            captured_component_teacher_prediction_count,
+                        ),
+                        flush=True,
+                    )
+            else:
+                component_teacher_model = None
+                component_teacher_stage_idx = None
+                component_teacher_frontier_max_digits = None
+                component_teacher_prediction_targets = {}
+            stage_idx = next_stage_idx
             del teacher_model
             pseudo_examples = []
             stage_best_frontier_val = -1.0
@@ -2185,6 +2422,25 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                     "new_stage_config": asdict(stage_cfgs[stage_idx]),
                     "seed_examples": len(seed_examples),
                     "frontier_max_digits": frontier_max_digits,
+                    "distill_epochs": args.growth_distill_epochs,
+                    "distill_loss": distill_loss,
+                    "distill_learning_rate": distill_lr if args.growth_distill_epochs > 0 else math.nan,
+                    "capacity_growth_scheme": args.capacity_growth_scheme,
+                    "captured_component_teacher": captured_component_teacher,
+                    "reused_component_teacher": reused_component_teacher,
+                    "captured_component_teacher_stage_idx": (
+                        component_teacher_stage_idx if (captured_component_teacher or reused_component_teacher) else None
+                    ),
+                    "captured_component_teacher_frontier_max_digits": (
+                        component_teacher_frontier_max_digits
+                        if (captured_component_teacher or reused_component_teacher)
+                        else None
+                    ),
+                    "captured_component_teacher_prediction_count": (
+                        captured_component_teacher_prediction_count
+                        if (captured_component_teacher or reused_component_teacher)
+                        else 0
+                    ),
                 }
             )
             print(
@@ -2320,7 +2576,6 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             use_true_targets=True,
         )
         stop_timing("eval_components_true", component_true_start, round_timing)
-        max_component_target_len = max(len(ex.true_target()) for ex in initial_train)
         component_pred_start = start_timing()
         component_prediction_targets = generate_prediction_map(
             model,
@@ -2433,6 +2688,22 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         frontier_expanded = next_frontier_max_digits > round_frontier_digits
         active_pseudo_digit_count = max(0, next_frontier_max_digits - args.initial_max_digits)
         min_unique_candidate_required_total = args.min_unique_candidate_per_digit * active_pseudo_digit_count
+        teacher_active_for_pseudo = (
+            args.capacity_growth_scheme == "progressive"
+            and component_teacher_frontier_max_digits == round_frontier_digits
+            and next_frontier_max_digits == round_frontier_digits
+            and len(component_teacher_prediction_targets) > 0
+        )
+        pseudo_component_prediction_targets = (
+            component_teacher_prediction_targets
+            if teacher_active_for_pseudo
+            else component_prediction_targets
+        )
+        component_label_source = "teacher" if teacher_active_for_pseudo else "current"
+        active_teacher_stage_idx = component_teacher_stage_idx if teacher_active_for_pseudo else None
+        active_teacher_frontier = (
+            component_teacher_frontier_max_digits if teacher_active_for_pseudo else None
+        )
 
         unique_candidate_component_gate_passed = (
             component_pred_coverage >= args.min_unique_candidate_min_component_acc
@@ -2450,7 +2721,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             next_pseudo_candidates, pseudo_stats = build_composed_pseudo_dataset(
                 composed_pool,
                 component_map,
-                component_prediction_targets,
+                pseudo_component_prediction_targets,
                 component_example_lookup,
                 target_max_digits=next_frontier_max_digits,
                 max_pseudo_per_round_per_digit=args.max_pseudo_per_round_per_digit,
@@ -2476,7 +2747,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                 )
                 augment_max_digits = next_frontier_max_digits
                 successful_components = [
-                    ex for ex in initial_train if ex.key() in component_prediction_targets
+                    ex for ex in initial_train if ex.key() in pseudo_component_prediction_targets
                 ]
                 seed_key_set = {ex.key() for ex in seed_examples}
                 while (
@@ -2517,7 +2788,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                     next_pseudo_candidates, pseudo_stats = build_composed_pseudo_dataset(
                         composed_pool,
                         component_map,
-                        component_prediction_targets,
+                        pseudo_component_prediction_targets,
                         component_example_lookup,
                         target_max_digits=next_frontier_max_digits,
                         max_pseudo_per_round_per_digit=args.max_pseudo_per_round_per_digit,
@@ -2567,6 +2838,18 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         pseudo_examples = next_pseudo
         frontier_max_digits = next_frontier_max_digits
         if frontier_expanded:
+            if component_teacher_frontier_max_digits is not None:
+                print(
+                    "[INFO] Retiring component-label teacher at frontier expansion: {} -> {}".format(
+                        round_frontier_digits,
+                        next_frontier_max_digits,
+                    ),
+                    flush=True,
+                )
+            component_teacher_model = None
+            component_teacher_stage_idx = None
+            component_teacher_frontier_max_digits = None
+            component_teacher_prediction_targets = {}
             frontier_span_digits = next_frontier_span_digits
             # Frontier changed; reset saturation tracking for the new regime.
             stage_best_frontier_val = -1.0
@@ -2636,6 +2919,10 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             "component_true_accuracy": component_true_acc,
             "component_prediction_coverage": component_pred_coverage,
             "component_prediction_count": len(component_prediction_targets),
+            "component_label_source": component_label_source,
+            "component_label_prediction_count": len(pseudo_component_prediction_targets),
+            "active_teacher_stage_idx": active_teacher_stage_idx,
+            "active_teacher_frontier_max_digits": active_teacher_frontier,
             "pseudo_generation_stats": pseudo_stats,
             "growth_triggered": growth_triggered,
             "stale_rounds_in_stage": stale_rounds,
@@ -2655,7 +2942,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             "seed_pruned={seed_pruned} "
             "init_val={init_val:.4f} frontier_val={front_val:.4f} full_val={full_val:.4f} "
             "train_true={train_true:.4f} comp_true={comp_true:.4f} comp_pred_cov={comp_pred_cov:.4f} init_mastered={init_mastered} "
-            "growth={growth} elapsed={elapsed:.1f}s".format(
+            "comp_label_src={comp_label_src} growth={growth} elapsed={elapsed:.1f}s".format(
                 idx=round_idx,
                 stage=stage_idx,
                 frontier=round_frontier_digits,
@@ -2674,6 +2961,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                 comp_true=component_true_acc,
                 comp_pred_cov=component_pred_coverage,
                 init_mastered=initial_mastered,
+                comp_label_src=component_label_source,
                 growth=growth_triggered,
                 elapsed=elapsed,
             ),

@@ -51,6 +51,10 @@ FULL_EVAL_INTERVAL="${FULL_EVAL_INTERVAL:-0}"
 GROWTH_DISTILL_EPOCHS="${GROWTH_DISTILL_EPOCHS:-2}"
 CONTINUATION_SAVE_INTERVAL="${CONTINUATION_SAVE_INTERVAL:-5}"
 RESUME_FROM_LATEST_STATE="${RESUME_FROM_LATEST_STATE:-0}"
+CAPACITY_GROWTH_SCHEME="${CAPACITY_GROWTH_SCHEME:-progressive}"
+TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-80}"
+EVAL_BATCH_SIZE="${EVAL_BATCH_SIZE:-160}"
+STAGE_CONFIGS="${STAGE_CONFIGS:-96x4x2,96x4x3,96x4x4,96x4x5,96x4x6,96x4x7,96x4x8,96x4x9,96x4x10,96x4x11,96x4x12,96x4x13,96x4x14,96x4x15,96x4x16,96x4x17,96x4x18,96x4x19,96x4x20,96x4x21,96x4x22,96x4x23,96x4x24,96x4x25}"
 
 COMMON_ARGS=(
   --output-dir "${OUT_ROOT}"
@@ -68,12 +72,15 @@ COMMON_ARGS=(
   --unique-candidate-augment-per-digit "${UNIQUE_CANDIDATE_AUGMENT_PER_DIGIT}"
   --unique-candidate-augment-max-events-per-edge-digit "${UNIQUE_CANDIDATE_AUGMENT_MAX_EVENTS_PER_EDGE_DIGIT}"
   --max-total-rounds 10000
-  --stage-configs "96x4x2,128x4x3,160x5x4,192x6x5,224x7x6,256x8x7,288x9x8,320x10x9,352x11x10,384x12x11"
+  --stage-configs "${STAGE_CONFIGS}"
+  --capacity-growth-scheme "${CAPACITY_GROWTH_SCHEME}"
   --num-epochs 3
   --initial-bootstrapping-epochs 8
   --growth-warmup-epochs 5
   --growth-distill-epochs "${GROWTH_DISTILL_EPOCHS}"
   --learning-rate 2e-4
+  --batch-size "${TRAIN_BATCH_SIZE}"
+  --eval-batch-size "${EVAL_BATCH_SIZE}"
   --saturation-patience 3
   --stall-bootstrap-composed-per-digit "${STALL_BOOTSTRAP_COMPOSED_PER_DIGIT}"
   --stall-bootstrap-max-events-per-edge-digit "${STALL_BOOTSTRAP_MAX_EVENTS_PER_EDGE_DIGIT}"
@@ -102,9 +109,40 @@ case "${RESUME_FROM_LATEST_STATE,,}" in
     ;;
 esac
 
+EFFECTIVE_STAGE_CONFIGS="${STAGE_CONFIGS}"
+EFFECTIVE_CAPACITY_GROWTH_SCHEME="${CAPACITY_GROWTH_SCHEME}"
+EFFECTIVE_TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE}"
+EFFECTIVE_EVAL_BATCH_SIZE="${EVAL_BATCH_SIZE}"
+for ((arg_idx = 0; arg_idx < ${#COMMON_ARGS[@]} - 1; arg_idx++)); do
+  case "${COMMON_ARGS[arg_idx]}" in
+    --stage-configs)
+      EFFECTIVE_STAGE_CONFIGS="${COMMON_ARGS[$((arg_idx + 1))]}"
+      ;;
+    --capacity-growth-scheme)
+      EFFECTIVE_CAPACITY_GROWTH_SCHEME="${COMMON_ARGS[$((arg_idx + 1))]}"
+      ;;
+    --batch-size)
+      EFFECTIVE_TRAIN_BATCH_SIZE="${COMMON_ARGS[$((arg_idx + 1))]}"
+      ;;
+    --eval-batch-size)
+      EFFECTIVE_EVAL_BATCH_SIZE="${COMMON_ARGS[$((arg_idx + 1))]}"
+      ;;
+  esac
+done
+IFS=',' read -r -a EFFECTIVE_STAGE_CONFIG_LIST <<< "${EFFECTIVE_STAGE_CONFIGS}"
+if [[ "${EFFECTIVE_CAPACITY_GROWTH_SCHEME}" == "progressive" && "${#EFFECTIVE_STAGE_CONFIG_LIST[@]}" -lt 2 ]]; then
+  echo "[ERROR] Progressive capacity growth requires at least two effective stage configs, got ${#EFFECTIVE_STAGE_CONFIG_LIST[@]}: ${EFFECTIVE_STAGE_CONFIGS}" >&2
+  echo "[ERROR] Provide a multi-stage --stage-configs override or switch to --capacity-growth-scheme legacy." >&2
+  exit 2
+fi
+
 echo "[INFO] Root dir: ${ROOT_DIR}"
 echo "[INFO] Output dir: ${OUT_ROOT}"
 echo "[INFO] Python: ${PYTHON_BIN}"
+echo "[INFO] Capacity growth scheme: ${EFFECTIVE_CAPACITY_GROWTH_SCHEME}"
+echo "[INFO] Stage configs: ${EFFECTIVE_STAGE_CONFIGS}"
+echo "[INFO] Batches: train=${EFFECTIVE_TRAIN_BATCH_SIZE} eval=${EFFECTIVE_EVAL_BATCH_SIZE}"
+echo "[INFO] EXTRA_ARGS: ${EXTRA_ARGS:-<none>}"
 echo "[INFO] Expansion: division_factor=${EXPAND_NUM_DIGITS_DIVISION_FACTOR}"
 echo "[INFO] Pseudo caps: max_per_digit=${MAX_PSEUDO_PER_ROUND_PER_DIGIT} unique_quota_per_digit=${NEW_PSEUDO_UNIQUE_QUOTA_PER_DIGIT}"
 echo "[INFO] Unique floor: min_unique_per_digit=${MIN_UNIQUE_CANDIDATE_PER_DIGIT} augment_per_digit=${UNIQUE_CANDIDATE_AUGMENT_PER_DIGIT} augment_max_events_per_edge_digit=${UNIQUE_CANDIDATE_AUGMENT_MAX_EVENTS_PER_EDGE_DIGIT} hard_fail=${MIN_UNIQUE_CANDIDATE_HARD_FAIL}"
