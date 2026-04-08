@@ -21,7 +21,7 @@ import signal
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Literal, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -31,7 +31,32 @@ from torch.utils.data import DataLoader, Dataset
 
 ExampleKey = Tuple[int, int, int]  # (digits, a, b)
 NUMERIC_PATTERN = re.compile(r"[-+]?\d+")
-DEFAULT_PROGRESSIVE_STAGE_CONFIGS = ",".join(f"96x4x{depth}" for depth in range(2, 26))
+DEFAULT_LEGACY_STAGE_CONFIGS = ",".join(
+    (
+        "96x4x2",
+        "128x4x3",
+        "160x5x4",
+        "192x6x5",
+        "224x7x6",
+        "256x8x7",
+        "288x9x8",
+        "320x10x9",
+        "352x11x10",
+        "384x12x11",
+    )
+)
+DEFAULT_PROGRESSIVE_DEPTH_STAGE_CONFIGS = ",".join(f"96x4x{depth}" for depth in range(2, 26))
+DEFAULT_PROGRESSIVE_STAGE_CONFIGS = DEFAULT_PROGRESSIVE_DEPTH_STAGE_CONFIGS
+CAPACITY_GROWTH_SCHEME_ALIASES = {"progressive": "progressive_depth"}
+PROGRESSIVE_CAPACITY_GROWTH_SCHEMES = frozenset({"progressive_depth", "progressive_depth_width"})
+
+
+def normalize_capacity_growth_scheme(raw: str) -> str:
+    return CAPACITY_GROWTH_SCHEME_ALIASES.get(raw, raw)
+
+
+def is_progressive_capacity_growth_scheme(raw: str) -> bool:
+    return normalize_capacity_growth_scheme(raw) in PROGRESSIVE_CAPACITY_GROWTH_SCHEMES
 
 
 @dataclass(frozen=True)
@@ -1384,7 +1409,7 @@ def instantiate_model(
     return model
 
 
-def validate_progressive_transition(
+def validate_progressive_depth_transition(
     prev_cfg: ModelStageConfig,
     next_cfg: ModelStageConfig,
 ) -> None:
@@ -1397,6 +1422,102 @@ def validate_progressive_transition(
         mismatches.append(f"n_layers must be non-decreasing ({prev_cfg.n_layers} -> {next_cfg.n_layers})")
     if mismatches:
         raise ValueError("; ".join(mismatches))
+
+
+def validate_progressive_depth_width_transition(
+    prev_cfg: ModelStageConfig,
+    next_cfg: ModelStageConfig,
+) -> None:
+    mismatches: List[str] = []
+    if next_cfg.d_model < prev_cfg.d_model:
+        mismatches.append(f"d_model must be non-decreasing ({prev_cfg.d_model} -> {next_cfg.d_model})")
+    if next_cfg.n_heads < prev_cfg.n_heads:
+        mismatches.append(f"n_heads must be non-decreasing ({prev_cfg.n_heads} -> {next_cfg.n_heads})")
+    if next_cfg.n_layers < prev_cfg.n_layers:
+        mismatches.append(f"n_layers must be non-decreasing ({prev_cfg.n_layers} -> {next_cfg.n_layers})")
+    if next_cfg.d_model % next_cfg.n_heads != 0:
+        mismatches.append(f"d_model must stay divisible by n_heads ({next_cfg.d_model} % {next_cfg.n_heads} != 0)")
+    if (next_cfg.d_model // next_cfg.n_heads) % 2 != 0:
+        mismatches.append(
+            "head_dim must stay even for RoPE "
+            f"({next_cfg.d_model // next_cfg.n_heads} from {next_cfg.d_model}/{next_cfg.n_heads})"
+        )
+    if mismatches:
+        raise ValueError("; ".join(mismatches))
+
+
+def validate_capacity_growth_transition(
+    scheme: str,
+    prev_cfg: ModelStageConfig,
+    next_cfg: ModelStageConfig,
+) -> None:
+    normalized_scheme = normalize_capacity_growth_scheme(scheme)
+    if normalized_scheme == "progressive_depth":
+        validate_progressive_depth_transition(prev_cfg, next_cfg)
+    elif normalized_scheme == "progressive_depth_width":
+        validate_progressive_depth_width_transition(prev_cfg, next_cfg)
+    else:
+        raise ValueError(f"Unsupported capacity growth scheme for transition validation: {scheme!r}")
+
+
+def validate_progressive_transition(
+    prev_cfg: ModelStageConfig,
+    next_cfg: ModelStageConfig,
+) -> None:
+    validate_progressive_depth_transition(prev_cfg, next_cfg)
+
+
+def build_replication_assignment(old_count: int, new_count: int) -> List[int]:
+    if old_count <= 0:
+        raise ValueError("old_count must be positive.")
+    if new_count < old_count:
+        raise ValueError(f"new_count must be >= old_count ({new_count} < {old_count}).")
+    assignment = list(range(old_count))
+    extra = new_count - old_count
+    for extra_idx in range(extra):
+        donor = min(old_count - 1, int(math.floor(((extra_idx + 0.5) * old_count) / max(1, extra))))
+        assignment.append(donor)
+    return assignment
+
+
+def build_replication_counts(assignment: Sequence[int]) -> Dict[int, int]:
+    counts: Dict[int, int] = {}
+    for source_idx in assignment:
+        counts[source_idx] = counts.get(source_idx, 0) + 1
+    return counts
+
+
+def copy_layer_norm_prefix(target: nn.LayerNorm, source: nn.LayerNorm) -> None:
+    with torch.no_grad():
+        nn.init.ones_(target.weight)
+        nn.init.zeros_(target.bias)
+        target.weight[: source.weight.numel()].copy_(source.weight)
+        target.bias[: source.bias.numel()].copy_(source.bias)
+
+
+def copy_layer_norm_replicated(
+    target: nn.LayerNorm,
+    source: nn.LayerNorm,
+    dim_assignment: Sequence[int],
+) -> None:
+    with torch.no_grad():
+        nn.init.ones_(target.weight)
+        nn.init.zeros_(target.bias)
+        for new_idx, donor_idx in enumerate(dim_assignment):
+            target.weight[new_idx] = source.weight[donor_idx]
+            target.bias[new_idx] = source.bias[donor_idx]
+
+
+def expand_embedding_progressive_depth_width(
+    source_emb: nn.Embedding,
+    target_emb: nn.Embedding,
+    dim_assignment: Sequence[int],
+    dim_counts: Mapping[int, int],
+) -> None:
+    with torch.no_grad():
+        target_emb.weight.zero_()
+        del dim_assignment, dim_counts
+        target_emb.weight[:, : source_emb.embedding_dim].copy_(source_emb.weight)
 
 
 def make_identity_block(
@@ -1427,7 +1548,7 @@ def make_identity_block(
             nn.init.zeros_(mlp_out.bias)
 
 
-def expand_model_progressive(
+def expand_model_progressive_depth(
     current_model: MiniTransformerLM,
     next_cfg: ModelStageConfig,
     args: argparse.Namespace,
@@ -1441,7 +1562,7 @@ def expand_model_progressive(
         n_heads=current_model.blocks[0].attn.n_heads,
         n_layers=len(current_model.blocks),
     )
-    validate_progressive_transition(prev_cfg, next_cfg)
+    validate_progressive_depth_transition(prev_cfg, next_cfg)
 
     expanded_model = instantiate_model(tokenizer, next_cfg, args, device)
     with torch.no_grad():
@@ -1455,6 +1576,201 @@ def expand_model_progressive(
         expanded_model.lm_head.weight = expanded_model.tok_emb.weight
     expanded_model.to(device)
     return expanded_model
+
+
+def expand_attention_progressive_depth_width(
+    source_attn: CausalSelfAttention,
+    target_attn: CausalSelfAttention,
+    *,
+    old_d_model: int,
+    new_d_model: int,
+) -> None:
+    old_n_heads = source_attn.n_heads
+    new_n_heads = target_attn.n_heads
+    old_head_dim = source_attn.head_dim
+    new_head_dim = target_attn.head_dim
+    model_dim_assignment = build_replication_assignment(old_d_model, new_d_model)
+    model_dim_counts = build_replication_counts(model_dim_assignment)
+    head_assignment = build_replication_assignment(old_n_heads, new_n_heads)
+    head_counts = build_replication_counts(head_assignment)
+    head_dim_assignment = build_replication_assignment(old_head_dim, new_head_dim)
+    head_dim_counts = build_replication_counts(head_dim_assignment)
+    qk_scale = (new_head_dim / old_head_dim) ** 0.25 if new_head_dim != old_head_dim else 1.0
+
+    with torch.no_grad():
+        target_attn.qkv.weight.zero_()
+        old_qkv = source_attn.qkv.weight.view(3, old_n_heads, old_head_dim, old_d_model)
+        new_qkv = target_attn.qkv.weight.view(3, new_n_heads, new_head_dim, new_d_model)
+        for new_head_idx, donor_head_idx in enumerate(head_assignment):
+            for new_head_dim_idx, donor_head_dim_idx in enumerate(head_dim_assignment):
+                for new_model_dim_idx, donor_model_dim_idx in enumerate(model_dim_assignment):
+                    donor_scale = math.sqrt(model_dim_counts[donor_model_dim_idx])
+                    new_qkv[0, new_head_idx, new_head_dim_idx, new_model_dim_idx] = (
+                        old_qkv[0, donor_head_idx, donor_head_dim_idx, donor_model_dim_idx] / donor_scale
+                    )
+                    new_qkv[1, new_head_idx, new_head_dim_idx, new_model_dim_idx] = (
+                        old_qkv[1, donor_head_idx, donor_head_dim_idx, donor_model_dim_idx] / donor_scale
+                    )
+                    new_qkv[2, new_head_idx, new_head_dim_idx, new_model_dim_idx] = (
+                        old_qkv[2, donor_head_idx, donor_head_dim_idx, donor_model_dim_idx] / donor_scale
+                    )
+                if qk_scale != 1.0:
+                    new_qkv[0, new_head_idx, new_head_dim_idx].mul_(qk_scale)
+                    new_qkv[1, new_head_idx, new_head_dim_idx].mul_(qk_scale)
+
+        target_attn.out_proj.weight.zero_()
+        old_out_proj = source_attn.out_proj.weight.view(old_d_model, old_n_heads, old_head_dim)
+        new_out_proj = target_attn.out_proj.weight.view(new_d_model, new_n_heads, new_head_dim)
+        for new_model_dim_idx, donor_model_dim_idx in enumerate(model_dim_assignment):
+            output_scale = math.sqrt(model_dim_counts[donor_model_dim_idx])
+            for new_head_idx, donor_head_idx in enumerate(head_assignment):
+                for new_head_dim_idx, donor_head_dim_idx in enumerate(head_dim_assignment):
+                    new_out_proj[new_model_dim_idx, new_head_idx, new_head_dim_idx] = (
+                        old_out_proj[donor_model_dim_idx, donor_head_idx, donor_head_dim_idx]
+                        / (
+                            output_scale
+                            * head_counts[donor_head_idx]
+                            * head_dim_counts[donor_head_dim_idx]
+                        )
+                    )
+
+
+def expand_mlp_progressive_depth_width(
+    source_block: TransformerBlock,
+    target_block: TransformerBlock,
+    *,
+    old_d_model: int,
+    new_d_model: int,
+) -> None:
+    source_fc1 = source_block.mlp[0]
+    source_fc2 = source_block.mlp[2]
+    target_fc1 = target_block.mlp[0]
+    target_fc2 = target_block.mlp[2]
+    if not isinstance(source_fc1, nn.Linear) or not isinstance(source_fc2, nn.Linear):
+        raise TypeError("Expected source MLP projections to be nn.Linear.")
+    if not isinstance(target_fc1, nn.Linear) or not isinstance(target_fc2, nn.Linear):
+        raise TypeError("Expected target MLP projections to be nn.Linear.")
+
+    model_dim_assignment = build_replication_assignment(old_d_model, new_d_model)
+    model_dim_counts = build_replication_counts(model_dim_assignment)
+    hidden_assignment = build_replication_assignment(source_fc1.out_features, target_fc1.out_features)
+    hidden_counts = build_replication_counts(hidden_assignment)
+
+    with torch.no_grad():
+        target_fc1.weight.zero_()
+        if target_fc1.bias is not None:
+            target_fc1.bias.zero_()
+        for new_hidden_idx, donor_hidden_idx in enumerate(hidden_assignment):
+            for new_model_dim_idx, donor_model_dim_idx in enumerate(model_dim_assignment):
+                target_fc1.weight[new_hidden_idx, new_model_dim_idx] = (
+                    source_fc1.weight[donor_hidden_idx, donor_model_dim_idx]
+                    / math.sqrt(model_dim_counts[donor_model_dim_idx])
+                )
+            if target_fc1.bias is not None and source_fc1.bias is not None:
+                target_fc1.bias[new_hidden_idx] = source_fc1.bias[donor_hidden_idx]
+
+        target_fc2.weight.zero_()
+        if target_fc2.bias is not None:
+            target_fc2.bias.zero_()
+        for new_model_dim_idx, donor_model_dim_idx in enumerate(model_dim_assignment):
+            output_scale = math.sqrt(model_dim_counts[donor_model_dim_idx])
+            if target_fc2.bias is not None and source_fc2.bias is not None:
+                target_fc2.bias[new_model_dim_idx] = source_fc2.bias[donor_model_dim_idx] / output_scale
+            for new_hidden_idx, donor_hidden_idx in enumerate(hidden_assignment):
+                target_fc2.weight[new_model_dim_idx, new_hidden_idx] = (
+                    source_fc2.weight[donor_model_dim_idx, donor_hidden_idx]
+                    / (output_scale * hidden_counts[donor_hidden_idx])
+                )
+
+
+def expand_block_progressive_depth_width(
+    source_block: TransformerBlock,
+    target_block: TransformerBlock,
+    *,
+    old_d_model: int,
+    new_d_model: int,
+) -> None:
+    model_dim_assignment = build_replication_assignment(old_d_model, new_d_model)
+    copy_layer_norm_replicated(target_block.norm1, source_block.norm1, model_dim_assignment)
+    copy_layer_norm_replicated(target_block.norm2, source_block.norm2, model_dim_assignment)
+    expand_attention_progressive_depth_width(
+        source_block.attn,
+        target_block.attn,
+        old_d_model=old_d_model,
+        new_d_model=new_d_model,
+    )
+    expand_mlp_progressive_depth_width(
+        source_block,
+        target_block,
+        old_d_model=old_d_model,
+        new_d_model=new_d_model,
+    )
+
+
+def expand_model_progressive_depth_width(
+    current_model: MiniTransformerLM,
+    next_cfg: ModelStageConfig,
+    args: argparse.Namespace,
+    tokenizer: AdditionTokenizer,
+    device: torch.device,
+) -> MiniTransformerLM:
+    if not current_model.blocks:
+        raise ValueError("Progressive expansion requires at least one transformer block in the current model.")
+    prev_cfg = ModelStageConfig(
+        d_model=current_model.tok_emb.embedding_dim,
+        n_heads=current_model.blocks[0].attn.n_heads,
+        n_layers=len(current_model.blocks),
+    )
+    validate_progressive_depth_width_transition(prev_cfg, next_cfg)
+
+    expanded_model = instantiate_model(tokenizer, next_cfg, args, device)
+    model_dim_assignment = build_replication_assignment(prev_cfg.d_model, next_cfg.d_model)
+    model_dim_counts = build_replication_counts(model_dim_assignment)
+    with torch.no_grad():
+        expand_embedding_progressive_depth_width(
+            current_model.tok_emb,
+            expanded_model.tok_emb,
+            model_dim_assignment,
+            model_dim_counts,
+        )
+        copy_layer_norm_prefix(expanded_model.norm, current_model.norm)
+        for layer_idx in range(prev_cfg.n_layers):
+            expand_block_progressive_depth_width(
+                current_model.blocks[layer_idx],
+                expanded_model.blocks[layer_idx],
+                old_d_model=prev_cfg.d_model,
+                new_d_model=next_cfg.d_model,
+            )
+        donor_block = expanded_model.blocks[prev_cfg.n_layers - 1]
+        for layer_idx in range(prev_cfg.n_layers, next_cfg.n_layers):
+            make_identity_block(expanded_model.blocks[layer_idx], reference_block=donor_block)
+        expanded_model.lm_head.weight = expanded_model.tok_emb.weight
+    expanded_model.to(device)
+    return expanded_model
+
+
+def expand_model_progressive(
+    current_model: MiniTransformerLM,
+    next_cfg: ModelStageConfig,
+    args: argparse.Namespace,
+    tokenizer: AdditionTokenizer,
+    device: torch.device,
+) -> MiniTransformerLM:
+    return expand_model_progressive_depth(current_model, next_cfg, args, tokenizer, device)
+
+
+def expand_model_for_capacity_growth(
+    current_model: MiniTransformerLM,
+    next_cfg: ModelStageConfig,
+    args: argparse.Namespace,
+    tokenizer: AdditionTokenizer,
+    device: torch.device,
+) -> MiniTransformerLM:
+    if args.capacity_growth_scheme == "progressive_depth":
+        return expand_model_progressive_depth(current_model, next_cfg, args, tokenizer, device)
+    if args.capacity_growth_scheme == "progressive_depth_width":
+        return expand_model_progressive_depth_width(current_model, next_cfg, args, tokenizer, device)
+    raise ValueError(f"Unsupported progressive capacity growth scheme: {args.capacity_growth_scheme!r}")
 
 
 def max_supported_digits_for_context_window(context_window: int) -> int:
@@ -1629,15 +1945,17 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Safety cap on total rounds including initial bootstrapping rounds.",
     )
 
-    parser.add_argument("--stage-configs", type=str, default=DEFAULT_PROGRESSIVE_STAGE_CONFIGS)
+    parser.add_argument("--stage-configs", type=str, default=DEFAULT_PROGRESSIVE_DEPTH_STAGE_CONFIGS)
     parser.add_argument(
         "--capacity-growth-scheme",
         type=str,
-        choices=("progressive", "legacy"),
-        default="progressive",
+        choices=("legacy", "progressive", "progressive_depth", "progressive_depth_width"),
+        default="progressive_depth",
         help=(
-            "Capacity growth method: progressive function-preserving expansion "
-            "or legacy fresh-stage initialization with optional distillation."
+            "Capacity growth method: legacy fresh-stage initialization, "
+            "progressive_depth function-preserving depth expansion, or "
+            "progressive_depth_width approximate depth+width expansion. "
+            "'progressive' is accepted as a backward-compatible alias of progressive_depth."
         ),
     )
     parser.add_argument("--ffn-mult", type=float, default=4.0)
@@ -1802,6 +2120,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
     args = parse_args(argv)
+    args.capacity_growth_scheme = normalize_capacity_growth_scheme(args.capacity_growth_scheme)
 
     if args.initial_min_digits < 1:
         raise ValueError("initial_min_digits must be >= 1.")
@@ -1886,23 +2205,23 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     cpu_device = torch.device("cpu")
 
     stage_cfgs = parse_stage_configs(args.stage_configs)
-    if args.capacity_growth_scheme == "progressive":
+    if is_progressive_capacity_growth_scheme(args.capacity_growth_scheme):
         if len(stage_cfgs) < 2:
             raise ValueError(
                 "Progressive capacity growth requires at least two stage configs, "
                 f"got {len(stage_cfgs)} from --stage-configs={args.stage_configs!r}. "
                 "Provide a stage ladder such as "
-                f"{DEFAULT_PROGRESSIVE_STAGE_CONFIGS!r} or switch to "
+                f"{DEFAULT_PROGRESSIVE_DEPTH_STAGE_CONFIGS!r} or switch to "
                 "--capacity-growth-scheme legacy for a single fixed-capacity run."
             )
         for transition_idx in range(len(stage_cfgs) - 1):
             prev_cfg = stage_cfgs[transition_idx]
             next_cfg = stage_cfgs[transition_idx + 1]
             try:
-                validate_progressive_transition(prev_cfg, next_cfg)
+                validate_capacity_growth_transition(args.capacity_growth_scheme, prev_cfg, next_cfg)
             except ValueError as exc:
                 raise ValueError(
-                    "Incompatible stage-configs for --capacity-growth-scheme=progressive at "
+                    f"Incompatible stage-configs for --capacity-growth-scheme={args.capacity_growth_scheme} at "
                     f"transition {transition_idx}->{transition_idx + 1}: {exc}"
                 ) from exc
     tokenizer = AdditionTokenizer()
@@ -2035,7 +2354,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             else None
         )
         component_teacher_state_dict = state.get("component_teacher_model_state_dict")
-        if args.capacity_growth_scheme == "progressive":
+        if is_progressive_capacity_growth_scheme(args.capacity_growth_scheme):
             if component_teacher_stage_idx is not None:
                 if component_teacher_stage_idx < 0 or component_teacher_stage_idx >= len(stage_cfgs):
                     raise ValueError(
@@ -2322,8 +2641,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                 else args.learning_rate
             )
             seed_examples = dedupe_examples(pending_growth_seed or seed_examples)
-            if args.capacity_growth_scheme == "progressive":
-                model = expand_model_progressive(
+            if is_progressive_capacity_growth_scheme(args.capacity_growth_scheme):
+                model = expand_model_for_capacity_growth(
                     teacher_model,
                     stage_cfgs[next_stage_idx],
                     args,
@@ -2362,7 +2681,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             captured_component_teacher = False
             reused_component_teacher = False
             captured_component_teacher_prediction_count = 0
-            if args.capacity_growth_scheme == "progressive":
+            if is_progressive_capacity_growth_scheme(args.capacity_growth_scheme):
                 keep_existing_component_teacher = (
                     component_teacher_frontier_max_digits == frontier_max_digits
                     and len(component_teacher_prediction_targets) > 0
@@ -2689,7 +3008,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         active_pseudo_digit_count = max(0, next_frontier_max_digits - args.initial_max_digits)
         min_unique_candidate_required_total = args.min_unique_candidate_per_digit * active_pseudo_digit_count
         teacher_active_for_pseudo = (
-            args.capacity_growth_scheme == "progressive"
+            is_progressive_capacity_growth_scheme(args.capacity_growth_scheme)
             and component_teacher_frontier_max_digits == round_frontier_digits
             and next_frontier_max_digits == round_frontier_digits
             and len(component_teacher_prediction_targets) > 0

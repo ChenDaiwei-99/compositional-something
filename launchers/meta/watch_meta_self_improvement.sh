@@ -96,21 +96,21 @@ choose_repair_profile() {
   local out_file="${ROOT_DIR}/artifacts/logs/meta-selfimp-rope-${jid}.out"
 
   if [[ -f "${err_file}" ]] && rg -qi 'requires at least two .*stage configs' "${err_file}"; then
-    extra_args="--capacity-growth-scheme progressive --stage-configs 96x4x2,96x4x3,96x4x4,96x4x5,96x4x6,96x4x7,96x4x8,96x4x9,96x4x10,96x4x11"
+    extra_args="--capacity-growth-scheme progressive_depth --stage-configs 96x4x2,96x4x3,96x4x4,96x4x5,96x4x6,96x4x7,96x4x8,96x4x9,96x4x10,96x4x11"
     use_fallback_profile=1
     log "Detected single-stage progressive override. Applying fallback EXTRA_ARGS='${extra_args}'."
     return
   fi
 
   if [[ -f "${err_file}" ]] && rg -qi 'out of memory|cuda error' "${err_file}"; then
-    extra_args="--batch-size 64 --eval-batch-size 128 --capacity-growth-scheme progressive --stage-configs 96x4x2,96x4x3,96x4x4,96x4x5"
+    extra_args="--batch-size 64 --eval-batch-size 128 --capacity-growth-scheme progressive_depth --stage-configs 96x4x2,96x4x3,96x4x4,96x4x5"
     use_fallback_profile=1
     log "Detected OOM. Applying fallback EXTRA_ARGS='${extra_args}'."
     return
   fi
 
   if [[ -f "${err_file}" ]] && rg -qi 'DUE TO TIME LIMIT|TIME LIMIT' "${err_file}"; then
-    extra_args="--num-rounds 4 --batch-size 80 --eval-batch-size 160 --capacity-growth-scheme progressive --stage-configs 96x4x2,96x4x3,96x4x4,96x4x5,96x4x6"
+    extra_args="--num-rounds 4 --batch-size 80 --eval-batch-size 160 --capacity-growth-scheme progressive_depth --stage-configs 96x4x2,96x4x3,96x4x4,96x4x5,96x4x6"
     use_fallback_profile=1
     log "Detected time-limit issue. Applying fallback EXTRA_ARGS='${extra_args}'."
     return
@@ -129,7 +129,7 @@ choose_repair_profile() {
   fi
 
   if [[ ${use_fallback_profile} -eq 0 ]]; then
-    extra_args="--batch-size 80 --eval-batch-size 160 --capacity-growth-scheme progressive"
+    extra_args="--batch-size 80 --eval-batch-size 160 --capacity-growth-scheme progressive_depth"
     use_fallback_profile=1
     log "Applying generic conservative fallback EXTRA_ARGS='${extra_args}'."
   fi
@@ -185,7 +185,7 @@ PY
 
 choose_quality_profile() {
   # Stronger training profile for underfitting runs.
-  extra_args="--initial-train-per-digit 3000 --validation-per-digit 160 --initial-bootstrapping-epochs 12 --num-epochs 5 --growth-warmup-epochs 8 --learning-rate 2e-4 --batch-size 80 --eval-batch-size 160 --max-total-rounds 140 --saturation-patience 4 --saturation-delta 0.001 --bootstrap-new-examples-per-digit 500 --min-rounds-per-frontier-before-growth 4 --capacity-growth-scheme progressive"
+  extra_args="--initial-train-per-digit 3000 --validation-per-digit 160 --initial-bootstrapping-epochs 12 --num-epochs 5 --growth-warmup-epochs 8 --learning-rate 2e-4 --batch-size 80 --eval-batch-size 160 --max-total-rounds 140 --saturation-patience 4 --saturation-delta 0.001 --bootstrap-new-examples-per-digit 500 --min-rounds-per-frontier-before-growth 4 --capacity-growth-scheme progressive_depth"
   use_fallback_profile=1
   log "Applying quality fallback EXTRA_ARGS='${extra_args}'."
 }
