@@ -1,0 +1,140 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue
+}
+
+\lstdefinestyle{pythonstyle}{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  keywordstyle=\color{blue!70!black},
+  commentstyle=\color{green!40!black},
+  stringstyle=\color{orange!70!black}
+}
+
+\title{Addition Self-Improvement Round 8 Model}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{What This Is}
+
+This folder contains the final round-8 checkpoint from the fixed-width mixed-prompt
+addition self-improvement run. The selected condition is filtered carry-aware
+composition with a fixed binary composition path.
+
+\begin{itemize}
+  \item Architecture: recipe no-position LLaMA-style causal LM, 6 layers, 384 hidden units, 6 heads.
+  \item Training regime: seed widths 3--7, then 8 self-improvement rounds.
+  \item Final horizon: internal operand width 23.
+  \item Final expanded held-out accuracy: 0.8644.
+  \item Final frontier-train accuracy: 0.9653.
+  \item Final seed-range held-out accuracy: 1.0000.
+\end{itemize}
+
+\section*{Input And Output Format}
+
+The model expects a natural, unpadded arithmetic prompt:
+
+\begin{quote}
+\texttt{Q: \{a\} + \{b\} = ?}\\
+\texttt{A:}
+\end{quote}
+
+For example:
+
+\begin{quote}
+\texttt{Q: 104 + 2305 = ?}\\
+\texttt{A:}
+\end{quote}
+
+The output is an unpadded decimal integer answer. During training, examples were
+sampled by an internal fixed operand width, but the visible prompt was always natural:
+internal leading zeros were not shown to the model. Thus an internal width-2 example
+such as \texttt{01 + 23} was displayed as \texttt{1 + 23}, with target \texttt{24}.
+
+\section*{Loading And Inference}
+
+This checkpoint uses the repository's custom recipe model class and arithmetic
+character tokenizer. Load it through the local repository code rather than plain
+vanilla \texttt{AutoModelForCausalLM}.
+
+\begin{lstlisting}[style=pythonstyle]
+from pathlib import Path
+import torch
+
+from self.addition_recipe import (
+    RECIPE_ARITHMETIC_SELF_IMPROVE_V1,
+    build_recipe_tokenizer,
+    load_recipe_model,
+    resolve_addition_recipe,
+    tokenizer_padding_side,
+)
+from self.self_improvement_core import build_generation_encodings
+from core.addition_pipeline import extract_numeric_answer
+
+model_dir = Path("models/addition_self_improvement_round8")
+
+preset = resolve_addition_recipe(RECIPE_ARITHMETIC_SELF_IMPROVE_V1)
+tokenizer = build_recipe_tokenizer(preset)
+model = load_recipe_model(
+    model_dir,
+    tokenizer,
+    bf16=torch.cuda.is_available(),
+    fp16=False,
+)
+model.eval()
+
+def predict_addition(a: int, b: int, max_new_tokens: int = 48):
+    prompt = f"Q: {int(a)} + {int(b)} = ?\nA:"
+    device = next(model.parameters()).device
+    with tokenizer_padding_side(tokenizer, "left"), torch.no_grad():
+        enc = build_generation_encodings(tokenizer, [prompt], device)
+        out = model.generate(
+            **enc,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+        )
+    generated = out[0, enc["input_ids"].shape[1]:]
+    decoded = tokenizer.decode(generated, skip_special_tokens=True)
+    return extract_numeric_answer(decoded), decoded
+
+answer, raw_text = predict_addition(104, 2305)
+print(answer, raw_text)
+\end{lstlisting}
+
+\section*{Held-Out Accuracy Heatmap}
+
+Rows are internal operand widths and columns are self-improvement rounds. The visible
+prompts remain natural/unpadded for every width.
+
+\begin{center}
+\includegraphics[width=0.95\linewidth]{heatmap_with_carry_filtered_round8.pdf}
+\end{center}
+
+\section*{Included Files}
+
+\begin{itemize}
+  \item \texttt{model.safetensors}: model weights.
+  \item \texttt{config.json}: model configuration.
+  \item \texttt{generation\_config.json}: generation configuration.
+  \item \texttt{tokenizer\_config.json}: arithmetic character tokenizer metadata.
+  \item \texttt{metrics.json}: final round metrics.
+  \item \texttt{heatmap\_with\_carry\_filtered\_round8.pdf}: accuracy heatmap shown above.
+\end{itemize}
+
+\end{document}

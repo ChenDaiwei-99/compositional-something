@@ -26,7 +26,7 @@ import inspect
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import BatchSampler, DataLoader, Dataset
 try:
     from torch.utils.tensorboard import SummaryWriter
 except ImportError:
@@ -59,6 +59,18 @@ except ImportError:
     get_peft_model = None  # type: ignore[assignment]
 
 NUMERIC_PATTERN = re.compile(r"[-+]?\d+")
+
+ADDITION_WIDTH_EXACT_DIGITS = "exact_digits"
+ADDITION_WIDTH_FIXED_MIXED_PROMPT = "fixed_width_mixed_prompt"
+ADDITION_WIDTH_MODES = (ADDITION_WIDTH_EXACT_DIGITS, ADDITION_WIDTH_FIXED_MIXED_PROMPT)
+
+ADDITION_SAMPLING_NATURAL = "natural"
+ADDITION_SAMPLING_BALANCED_VISIBLE_LENGTHS = "balanced_visible_lengths"
+ADDITION_SAMPLING_MODES = (ADDITION_SAMPLING_NATURAL, ADDITION_SAMPLING_BALANCED_VISIBLE_LENGTHS)
+
+COMPOSITION_PATH_RANDOM = "random"
+COMPOSITION_PATH_FIXED_BINARY = "fixed_binary"
+COMPOSITION_PATH_MODES = (COMPOSITION_PATH_RANDOM, COMPOSITION_PATH_FIXED_BINARY)
 
 
 def encode_key(key: Tuple[int, int, int]) -> str:
@@ -130,7 +142,14 @@ def build_composed_pseudo_map(
             preds.append(pred)
         if missing or not preds:
             continue
-        override = "".join(preds)
+        padded_preds: List[str] = []
+        for idx, pred in enumerate(preds):
+            width = component_keys[idx][0]
+            normalized = pred.strip()
+            if idx > 0 and not normalized.startswith("-"):
+                normalized = normalized.zfill(width)
+            padded_preds.append(normalized)
+        override = "".join(padded_preds).lstrip("0") or "0"
         if boundary_carry and filter_component_carries:
             boundary_overrides.append((key, override))
             continue
@@ -186,6 +205,11 @@ class AdditionExample:
     digits: int
     has_carry: bool
     target_override: Optional[str] = None
+    operand_width: Optional[int] = None
+
+    @property
+    def block_width(self) -> int:
+        return self.operand_width if self.operand_width is not None else self.digits
 
     def prompt(self) -> str:
         return f"Q: {self.a} + {self.b} = ?\nA:"
@@ -196,10 +220,10 @@ class AdditionExample:
         return str(self.result)
 
     def formatted_a(self) -> str:
-        return str(self.a).zfill(self.digits)
+        return str(self.a).zfill(self.block_width)
 
     def formatted_b(self) -> str:
-        return str(self.b).zfill(self.digits)
+        return str(self.b).zfill(self.block_width)
 
 
 def has_carry(a: int, b: int) -> bool:
@@ -214,22 +238,81 @@ def has_carry(a: int, b: int) -> bool:
     return False
 
 
+def visible_digit_length(value: int) -> int:
+    return len(str(abs(int(value))))
+
+
+def visible_length_bounds(length: int) -> Tuple[int, int]:
+    if length <= 0:
+        raise ValueError("visible length must be positive")
+    if length == 1:
+        return 0, 9
+    return 10 ** (length - 1), 10**length - 1
+
+
+def balanced_visible_length_schedule(
+    operand_width: int,
+    count: int,
+    rng: random.Random,
+) -> List[Tuple[int, int]]:
+    if operand_width <= 0:
+        raise ValueError("operand_width must be positive")
+    if count <= 0:
+        return []
+    pairs = [(a_len, b_len) for a_len in range(1, operand_width + 1) for b_len in range(1, operand_width + 1)]
+    schedule = [pairs[idx % len(pairs)] for idx in range(count)]
+    rng.shuffle(schedule)
+    return schedule
+
+
 def generate_addition_pair(
     num_digits: int,
     allow_carry: bool = True,
     rng: Optional[random.Random] = None,
+    addition_width_mode: str = ADDITION_WIDTH_EXACT_DIGITS,
+    visible_length_pair: Optional[Tuple[int, int]] = None,
 ) -> AdditionExample:
     """Return a random addition example with the requested digit length."""
     if num_digits <= 0:
         raise ValueError("num_digits must be positive")
+    if addition_width_mode not in ADDITION_WIDTH_MODES:
+        raise ValueError(f"Unsupported addition_width_mode={addition_width_mode!r}")
+    if visible_length_pair is not None and addition_width_mode != ADDITION_WIDTH_FIXED_MIXED_PROMPT:
+        raise ValueError("visible_length_pair is only supported for fixed_width_mixed_prompt addition.")
     rng = rng or random.Random()
+    if visible_length_pair is not None:
+        a_len, b_len = visible_length_pair
+        if not (1 <= a_len <= num_digits and 1 <= b_len <= num_digits):
+            raise ValueError(
+                f"visible_length_pair={visible_length_pair!r} is incompatible with operand width {num_digits}."
+            )
+        a_low, a_high = visible_length_bounds(a_len)
+        b_low, b_high = visible_length_bounds(b_len)
+        for _ in range(10_000):
+            a = rng.randint(a_low, a_high)
+            b = rng.randint(b_low, b_high)
+            carry = has_carry(a, b)
+            if allow_carry or not carry:
+                return AdditionExample(
+                    a=a,
+                    b=b,
+                    result=a + b,
+                    digits=num_digits,
+                    has_carry=carry,
+                    operand_width=num_digits,
+                )
+        raise RuntimeError(
+            "Failed to generate "
+            f"{'non-carry ' if not allow_carry else ''}fixed-width example for "
+            f"width={num_digits} visible_length_pair={visible_length_pair!r}"
+        )
     if not allow_carry:
         # Build per-digit sums that never exceed 9 so carries cannot occur.
         a_digits: List[int] = []
         b_digits: List[int] = []
         for idx in range(num_digits):
             is_most_significant = idx == num_digits - 1
-            if is_most_significant:
+            if is_most_significant and addition_width_mode == ADDITION_WIDTH_EXACT_DIGITS:
                 sum_digit = rng.randint(2, 9)
                 a_digit = rng.randint(1, sum_digit - 1)
                 b_digit = sum_digit - a_digit
@@ -251,15 +334,26 @@ def generate_addition_pair(
             result=a_val + b_val,
             digits=num_digits,
             has_carry=False,
+            operand_width=num_digits,
         )
-    low = 10 ** (num_digits - 1) if num_digits > 1 else 0
+    if addition_width_mode == ADDITION_WIDTH_FIXED_MIXED_PROMPT:
+        low = 0
+    else:
+        low = 10 ** (num_digits - 1) if num_digits > 1 else 0
     high = 10**num_digits - 1
     for _ in range(10_000):
         a = rng.randint(low, high)
         b = rng.randint(low, high)
         carry = has_carry(a, b)
         if allow_carry or not carry:
-            return AdditionExample(a=a, b=b, result=a + b, digits=num_digits, has_carry=carry)
+            return AdditionExample(
+                a=a,
+                b=b,
+                result=a + b,
+                digits=num_digits,
+                has_carry=carry,
+                operand_width=num_digits,
+            )
     raise RuntimeError(
         f"Failed to generate {'non-carry' if not allow_carry else ''} example for {num_digits} digits"
     )
@@ -282,6 +376,7 @@ def compose_examples(*examples: AdditionExample) -> AdditionExample:
         result=result,
         digits=len(a_str),
         has_carry=carry,
+        operand_width=len(a_str),
     )
 
 
@@ -305,6 +400,24 @@ def has_component_boundary_carry(example: AdditionExample, component_digits: Seq
     return False
 
 
+def matches_boundary_carry_policy(
+    example: AdditionExample,
+    component_digits: Sequence[int],
+    boundary_carry_policy: str,
+) -> bool:
+    """Return whether a composed example matches the requested boundary-carry bucket."""
+    if boundary_carry_policy == "any":
+        return True
+    if len(component_digits) <= 1:
+        return boundary_carry_policy == "no_boundary_carry"
+    has_boundary_carry = has_component_boundary_carry(example, component_digits)
+    if boundary_carry_policy == "no_boundary_carry":
+        return not has_boundary_carry
+    if boundary_carry_policy == "boundary_carry":
+        return has_boundary_carry
+    raise ValueError(f"Unsupported boundary_carry_policy={boundary_carry_policy!r}")
+
+
 def example_key(example: AdditionExample) -> Tuple[int, int, int]:
     """Stable key for deduplication across splits."""
     return (example.digits, min(example.a, example.b), max(example.a, example.b))
@@ -323,6 +436,8 @@ def compose_to_length(
     rng: random.Random,
     *,
     allow_carry: bool,
+    boundary_carry_policy: str = "any",
+    composition_path_mode: str = COMPOSITION_PATH_RANDOM,
     max_attempts: int = 2_000,
 ) -> Tuple[AdditionExample, List[AdditionExample]]:
     """Randomly compose base examples to reach the desired digit length."""
@@ -330,20 +445,41 @@ def compose_to_length(
         raise ValueError("target_digits must be positive")
     if not buckets:
         raise ValueError("No base examples available for composition")
+    if composition_path_mode not in COMPOSITION_PATH_MODES:
+        raise ValueError(f"Unsupported composition_path_mode={composition_path_mode!r}")
     digit_keys = sorted(buckets.keys())
     for _ in range(max_attempts):
-        digits_needed = target_digits
-        chosen: List[AdditionExample] = []
-        while digits_needed > 0:
-            viable = [d for d in digit_keys if d <= digits_needed and buckets[d]]
-            if not viable:
+        if composition_path_mode == COMPOSITION_PATH_FIXED_BINARY:
+            left_digits = target_digits // 2
+            right_digits = target_digits - left_digits
+            if left_digits <= 0:
                 break
-            digit = rng.choice(viable)
-            chosen.append(rng.choice(buckets[digit]))
-            digits_needed -= digit
+            if not buckets.get(left_digits) or not buckets.get(right_digits):
+                raise RuntimeError(
+                    f"Unable to compose {target_digits} digits with fixed_binary path "
+                    f"({left_digits}+{right_digits}); missing component bucket."
+                )
+            chosen = [
+                rng.choice(buckets[left_digits]),
+                rng.choice(buckets[right_digits]),
+            ]
+            digits_needed = 0
+        else:
+            digits_needed = target_digits
+            chosen = []
+            while digits_needed > 0:
+                viable = [d for d in digit_keys if d <= digits_needed and buckets[d]]
+                if not viable:
+                    break
+                digit = rng.choice(viable)
+                chosen.append(rng.choice(buckets[digit]))
+                digits_needed -= digit
         if digits_needed == 0 and len(chosen) >= 2:
             composed = compose_examples(*chosen)
             if not allow_carry and composed.has_carry:
+                continue
+            component_digits = [example.digits for example in chosen]
+            if not matches_boundary_carry_policy(composed, component_digits, boundary_carry_policy):
                 continue
             return composed, chosen
     raise RuntimeError(
@@ -363,8 +499,17 @@ def build_length_bucket_dataset(
     record_pairs: Optional[Dict[str, set[tuple[int, int, int]]]] = None,
     progress_name: Optional[str] = None,
     max_attempts: int = 10_000,
+    addition_width_mode: str = ADDITION_WIDTH_EXACT_DIGITS,
+    addition_sampling_mode: str = ADDITION_SAMPLING_NATURAL,
 ) -> Dict[str, List[AdditionExample]]:
     """Generate per-split datasets covering the requested digit range."""
+    if addition_sampling_mode not in ADDITION_SAMPLING_MODES:
+        raise ValueError(f"Unsupported addition_sampling_mode={addition_sampling_mode!r}")
+    if (
+        addition_sampling_mode == ADDITION_SAMPLING_BALANCED_VISIBLE_LENGTHS
+        and addition_width_mode != ADDITION_WIDTH_FIXED_MIXED_PROMPT
+    ):
+        raise ValueError("balanced_visible_lengths sampling requires fixed_width_mixed_prompt width mode.")
     splits = {key: [] for key in ("train", "validation", "test")}
     occupied = set(exclude_pairs) if exclude_pairs else set()
     used_counts: Dict[int, int] = defaultdict(int)
@@ -395,28 +540,67 @@ def build_length_bucket_dataset(
             if total_requested == 0:
                 continue
         digit_examples: List[Tuple[AdditionExample, Tuple[int, int, int], bool]] = []
-        attempts = 0
-        duplicates_allowed = False
-        while len(digit_examples) < total_requested:
-            attempts += 1
-            example = generate_addition_pair(digits, allow_carry=allow_carry, rng=rng)
-            key = example_key(example)
-            if key in occupied:
-                if attempts >= max_attempts:
-                    if not duplicates_allowed:
-                        print(
-                            f"[WARN] Exhausted unique sampling for digits={digits} (progress={progress_name}); "
-                            "allowing duplicates.",
-                            flush=True,
-                        )
-                        duplicates_allowed = True
-                    digit_examples.append((example, key, True))
-                    attempts = 0
-                continue
-            occupied.add(key)
-            used_counts[digits] += 1
-            digit_examples.append((example, key, False))
+        if addition_sampling_mode == ADDITION_SAMPLING_BALANCED_VISIBLE_LENGTHS:
+            schedule = balanced_visible_length_schedule(digits, total_requested, rng)
+            duplicate_cells: set[Tuple[int, int]] = set()
+            for visible_pair in schedule:
+                attempts = 0
+                while True:
+                    attempts += 1
+                    example = generate_addition_pair(
+                        digits,
+                        allow_carry=allow_carry,
+                        rng=rng,
+                        addition_width_mode=addition_width_mode,
+                        visible_length_pair=visible_pair,
+                    )
+                    key = example_key(example)
+                    if visible_pair in duplicate_cells:
+                        digit_examples.append((example, key, True))
+                        break
+                    if key in occupied:
+                        if attempts >= max_attempts:
+                            print(
+                                f"[WARN] Exhausted unique sampling for digits={digits} visible_lengths={visible_pair} "
+                                f"(progress={progress_name}); allowing duplicates for this cell.",
+                                flush=True,
+                            )
+                            duplicate_cells.add(visible_pair)
+                            digit_examples.append((example, key, True))
+                            break
+                        continue
+                    occupied.add(key)
+                    used_counts[digits] += 1
+                    digit_examples.append((example, key, False))
+                    break
+        else:
             attempts = 0
+            duplicates_allowed = False
+            while len(digit_examples) < total_requested:
+                attempts += 1
+                example = generate_addition_pair(
+                    digits,
+                    allow_carry=allow_carry,
+                    rng=rng,
+                    addition_width_mode=addition_width_mode,
+                )
+                key = example_key(example)
+                if key in occupied:
+                    if attempts >= max_attempts:
+                        if not duplicates_allowed:
+                            print(
+                                f"[WARN] Exhausted unique sampling for digits={digits} (progress={progress_name}); "
+                                "allowing duplicates.",
+                                flush=True,
+                            )
+                            duplicates_allowed = True
+                        digit_examples.append((example, key, True))
+                        attempts = 0
+                    continue
+                occupied.add(key)
+                used_counts[digits] += 1
+                digit_examples.append((example, key, False))
+                attempts = 0
         idx = 0
         for split in split_order:
             count = per_digit_per_split.get(split, 0)
@@ -454,6 +638,9 @@ def build_composed_datasets(
     allow_carry: bool = False,
     allow_nocarry: bool = True,
     dynamic_digit_sampling: bool = False,
+    boundary_carry_policy: str = "any",
+    addition_width_mode: str = ADDITION_WIDTH_EXACT_DIGITS,
+    composition_path_mode: str = COMPOSITION_PATH_RANDOM,
 ) -> Dict[str, List[AdditionExample]]:
     """Construct compositional datasets from base examples with carry control."""
     splits = {key: [] for key in ("train", "validation", "test")}
@@ -498,11 +685,33 @@ def build_composed_datasets(
                     component_list: List[AdditionExample] = []
                     try:
                         composed_example, components = compose_to_length(
-                            buckets, digits, rng, allow_carry=allow_carry
+                            buckets,
+                            digits,
+                            rng,
+                            allow_carry=allow_carry,
+                            boundary_carry_policy=boundary_carry_policy,
+                            composition_path_mode=composition_path_mode,
                         )
                         component_list = components
-                    except RuntimeError:
-                        composed_example = generate_addition_pair(digits, allow_carry=allow_carry, rng=rng)
+                    except RuntimeError as exc:
+                        if (
+                            composition_path_mode == COMPOSITION_PATH_FIXED_BINARY
+                            and "missing component bucket" in str(exc)
+                        ):
+                            raise
+                        if boundary_carry_policy != "any":
+                            if attempts >= max_attempts:
+                                raise RuntimeError(
+                                    f"Unable to construct composed examples for digits={digits} split='{split}' "
+                                    f"under boundary_carry_policy={boundary_carry_policy!r}."
+                                )
+                            continue
+                        composed_example = generate_addition_pair(
+                            digits,
+                            allow_carry=allow_carry,
+                            rng=rng,
+                            addition_width_mode=addition_width_mode,
+                        )
                         component_list = []
                     if not allow_carry and composed_example.has_carry:
                         continue
@@ -568,11 +777,33 @@ def build_composed_datasets(
                     component_list: List[AdditionExample] = []
                     try:
                         composed_example, components = compose_to_length(
-                            buckets, digits, rng, allow_carry=allow_carry
+                            buckets,
+                            digits,
+                            rng,
+                            allow_carry=allow_carry,
+                            boundary_carry_policy=boundary_carry_policy,
+                            composition_path_mode=composition_path_mode,
                         )
                         component_list = components
-                    except RuntimeError:
-                        composed_example = generate_addition_pair(digits, allow_carry=allow_carry, rng=rng)
+                    except RuntimeError as exc:
+                        if (
+                            composition_path_mode == COMPOSITION_PATH_FIXED_BINARY
+                            and "missing component bucket" in str(exc)
+                        ):
+                            raise
+                        if boundary_carry_policy != "any":
+                            if attempts >= max_attempts:
+                                raise RuntimeError(
+                                    f"Unable to construct composed examples for digits={digits} split='{split}' "
+                                    f"under boundary_carry_policy={boundary_carry_policy!r}."
+                                )
+                            continue
+                        composed_example = generate_addition_pair(
+                            digits,
+                            allow_carry=allow_carry,
+                            rng=rng,
+                            addition_width_mode=addition_width_mode,
+                        )
                         component_list = []
                     if not allow_carry and composed_example.has_carry:
                         continue
@@ -644,6 +875,9 @@ class TokenizedAdditionDataset(Dataset):
     def __len__(self) -> int:
         return len(self.examples)
 
+    def digits_for_index(self, idx: int) -> int:
+        return self.examples[idx].digits
+
     def __getitem__(self, idx: int) -> Dict[str, List[int]]:
         example = self.examples[idx]
         prompt = example.prompt()
@@ -676,6 +910,86 @@ class TokenizedAdditionDataset(Dataset):
         }
 
 
+class DigitBucketBatchSampler(BatchSampler):
+    """Yield batches that contain examples from exactly one digit bucket."""
+
+    def __init__(
+        self,
+        dataset: TokenizedAdditionDataset,
+        batch_size: int,
+        *,
+        seed: int,
+        drop_last: bool = False,
+    ) -> None:
+        if batch_size <= 0:
+            raise ValueError("batch_size must be positive.")
+        self.dataset = dataset
+        self.batch_size = int(batch_size)
+        self.seed = int(seed)
+        self.drop_last = bool(drop_last)
+        self._iteration = 0
+        self._digit_to_indices: Dict[int, List[int]] = defaultdict(list)
+        for idx in range(len(dataset)):
+            self._digit_to_indices[dataset.digits_for_index(idx)].append(idx)
+
+    def __iter__(self):
+        rng = random.Random(self.seed + self._iteration)
+        self._iteration += 1
+
+        batches: List[List[int]] = []
+        for digits in sorted(self._digit_to_indices):
+            indices = list(self._digit_to_indices[digits])
+            rng.shuffle(indices)
+            full_count = len(indices) // self.batch_size
+            for batch_idx in range(full_count):
+                start = batch_idx * self.batch_size
+                batches.append(indices[start : start + self.batch_size])
+            remainder = len(indices) % self.batch_size
+            if remainder and not self.drop_last:
+                batches.append(indices[-remainder:])
+
+        rng.shuffle(batches)
+        for batch in batches:
+            yield batch
+
+    def __len__(self) -> int:
+        total = 0
+        for indices in self._digit_to_indices.values():
+            if self.drop_last:
+                total += len(indices) // self.batch_size
+            else:
+                total += math.ceil(len(indices) / self.batch_size)
+        return total
+
+
+class BatchSamplerTrainer(Trainer):
+    """Trainer variant that accepts an explicit train batch sampler."""
+
+    def __init__(self, *args, train_batch_sampler: Optional[BatchSampler] = None, **kwargs) -> None:
+        self._train_batch_sampler = train_batch_sampler
+        super().__init__(*args, **kwargs)
+
+    def get_train_dataloader(self) -> DataLoader:
+        if self.train_dataset is None:
+            raise ValueError("Trainer: training requires a train_dataset.")
+        if self._train_batch_sampler is None:
+            return super().get_train_dataloader()
+
+        dataloader_kwargs: Dict[str, Any] = {
+            "batch_sampler": self._train_batch_sampler,
+            "collate_fn": self.data_collator,
+            "num_workers": self.args.dataloader_num_workers,
+            "pin_memory": self.args.dataloader_pin_memory,
+        }
+        if self.args.dataloader_num_workers > 0:
+            dataloader_kwargs["persistent_workers"] = self.args.dataloader_persistent_workers
+            if getattr(self.args, "dataloader_prefetch_factor", None) is not None:
+                dataloader_kwargs["prefetch_factor"] = self.args.dataloader_prefetch_factor
+
+        dataloader = DataLoader(self.train_dataset, **dataloader_kwargs)
+        return self.accelerator.prepare(dataloader)
+
+
 @dataclass
 class CausalLMDataCollator:
     """Pad variable-length causal LM batches."""
@@ -684,7 +998,7 @@ class CausalLMDataCollator:
 
     def __call__(self, features: Sequence[Dict[str, List[int]]]) -> Dict[str, torch.Tensor]:
         max_length = max(len(f["input_ids"]) for f in features)
-        pad_token_id = self.tokenizer.pad_token_id or self.tokenizer.eos_token_id
+        pad_token_id = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id
         if pad_token_id is None:
             raise ValueError("Tokenizer needs pad_token_id or eos_token_id for padding")
 
@@ -747,6 +1061,41 @@ def resolve_max_new_tokens(examples: Sequence[AdditionExample], base_value: int,
     return max(base_value, max_target_len + buffer)
 
 
+def build_generation_encodings(
+    tokenizer,
+    prompts: Sequence[str],
+    device: torch.device,
+) -> Dict[str, torch.Tensor]:
+    if not prompts:
+        raise ValueError("Expected at least one prompt for generation.")
+
+    prompt_token_ids = [tokenizer.encode(prompt, add_special_tokens=False) for prompt in prompts]
+    if tokenizer.bos_token_id is not None:
+        prompt_token_ids = [[int(tokenizer.bos_token_id), *ids] for ids in prompt_token_ids]
+
+    max_length = max(len(ids) for ids in prompt_token_ids)
+    pad_token_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
+    if pad_token_id is None:
+        raise ValueError("Tokenizer needs pad_token_id or eos_token_id for generation padding.")
+
+    padding_side = getattr(tokenizer, "padding_side", "right")
+    batch_input_ids: List[List[int]] = []
+    batch_attention: List[List[int]] = []
+    for ids in prompt_token_ids:
+        pad_count = max_length - len(ids)
+        if padding_side == "left":
+            batch_input_ids.append([pad_token_id] * pad_count + ids)
+            batch_attention.append([0] * pad_count + [1] * len(ids))
+        else:
+            batch_input_ids.append(ids + [pad_token_id] * pad_count)
+            batch_attention.append([1] * len(ids) + [0] * pad_count)
+
+    return {
+        "input_ids": torch.tensor(batch_input_ids, dtype=torch.long, device=device),
+        "attention_mask": torch.tensor(batch_attention, dtype=torch.long, device=device),
+    }
+
+
 def evaluate_accuracy(
     model: AutoModelForCausalLM,
     tokenizer,
@@ -805,13 +1154,7 @@ def evaluate_accuracy_with_breakdown(
         for start in range(0, total, batch_size):
             batch = examples[start : start + batch_size]
             prompts = [ex.prompt() for ex in batch]
-            encodings = tokenizer(
-                prompts,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-            )
-            encodings = {k: v.to(device) for k, v in encodings.items()}
+            encodings = build_generation_encodings(tokenizer, prompts, device)
             output_ids = model.generate(
                 **encodings,
                 max_new_tokens=max_new_tokens,
@@ -819,12 +1162,16 @@ def evaluate_accuracy_with_breakdown(
                 temperature=0.0,
                 top_p=1.0,
             )
-            input_lengths = encodings["attention_mask"].sum(dim=1)
+            # `generate()` returns the full padded prompt prefix followed by new
+            # tokens. With left padding, slicing by per-row attention length
+            # lands inside the prompt for shorter rows and corrupts both eval
+            # and pseudo-label extraction. Slice from the shared padded width.
+            prompt_width = encodings["input_ids"].shape[1]
             for idx, example in enumerate(batch):
                 global_index = start + idx
                 example_number = global_index + 1
                 digit_totals[example.digits] += 1
-                generated_slice = output_ids[idx, input_lengths[idx] :].tolist()
+                generated_slice = output_ids[idx, prompt_width:].tolist()
                 text = tokenizer.decode(generated_slice, skip_special_tokens=True)
                 numeric_tokens = [match.strip() for match in NUMERIC_PATTERN.findall(text)]
                 pred_str = numeric_tokens[-1] if numeric_tokens else None
@@ -900,13 +1247,7 @@ def generate_prediction_map(
         for start in range(0, len(values), batch_size):
             batch = values[start : start + batch_size]
             prompts = [ex.prompt() for ex in batch]
-            encodings = tokenizer(
-                prompts,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-            )
-            encodings = {k: v.to(device) for k, v in encodings.items()}
+            encodings = build_generation_encodings(tokenizer, prompts, device)
             output_ids = model.generate(
                 **encodings,
                 max_new_tokens=max_new_tokens,
@@ -914,9 +1255,9 @@ def generate_prediction_map(
                 temperature=0.0,
                 top_p=1.0,
             )
-            input_lengths = encodings["attention_mask"].sum(dim=1)
+            prompt_width = encodings["input_ids"].shape[1]
             for idx, example in enumerate(batch):
-                generated_slice = output_ids[idx, input_lengths[idx] :].tolist()
+                generated_slice = output_ids[idx, prompt_width:].tolist()
                 text = tokenizer.decode(generated_slice, skip_special_tokens=True)
                 pred = extract_numeric_answer(text)
                 key = example_key(example)
@@ -937,6 +1278,7 @@ def clone_with_override(example: AdditionExample, override: Optional[str]) -> Ad
         digits=example.digits,
         has_carry=example.has_carry,
         target_override=override,
+        operand_width=example.block_width,
     )
 
 
